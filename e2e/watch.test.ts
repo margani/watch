@@ -16,6 +16,10 @@ test('watchlist: search, add, change status and rating, remove; private to the a
 	await expect(page).toHaveURL(/\/search\?q=lighthouse$/);
 	const results = page.getByRole('list', { name: 'Results' }).getByRole('listitem');
 	await expect(results).toHaveCount(2);
+	// IMDb's rating shows in the results, like on the list (#10).
+	await expect(results.filter({ hasText: 'The Lighthouse Keeper’s Clock' })).toContainText(
+		'IMDb 7.8'
+	);
 
 	await results.filter({ hasText: 'The Lighthouse Keeper’s Clock' }).getByRole('link').click();
 	await expect(page).toHaveURL(/\/movie\/900001$/);
