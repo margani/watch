@@ -21,6 +21,8 @@ where-to-watch data comes from [JustWatch](https://www.justwatch.com/) through T
 
 _This product uses the TMDB API but is not endorsed or certified by TMDB._
 
+A hosted copy runs at [watch.whosane.dev](https://watch.whosane.dev) (invite-only for now).
+
 ## Develop
 
 ```bash
