@@ -1,0 +1,20 @@
+# Copy to .dev.vars for local development (wrangler reads it; it is gitignored).
+# `npm run gen` also reads this file, so every secret the Worker uses is listed here.
+# On Cloudflare, set the secrets with `npx wrangler secret put NAME`.
+ORIGIN="http://localhost:5173"
+# Any long random string in production (`openssl rand -base64 32`).
+BETTER_AUTH_SECRET="local-dev-secret-change-me-0123456789"
+# Who may create an account: comma-separated emails, * for anyone, empty for nobody.
+ALLOWED_SIGNUP_EMAILS="*"
+# Optional: Google sign-in. Leave empty to hide the Google button.
+GOOGLE_CLIENT_ID=""
+GOOGLE_CLIENT_SECRET=""
+# Films and series from TMDB: its API Read Access Token (free, themoviedb.org/settings/api).
+TMDB_TOKEN=""
+# Without a token, 1 shows made-up demo titles instead (local development and tests).
+TMDB_DEMO="1"
+# Optional: Rotten Tomatoes and Metacritic scores on title pages, an OMDb key (omdbapi.com).
+OMDB_API_KEY=""
+# Optional: the address password-reset and news emails come from. It must be on a domain onboarded
+# for Cloudflare Email Sending on your account. Empty: no emails, and the pages say so.
+EMAIL_FROM=""

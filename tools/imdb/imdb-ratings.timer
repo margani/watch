@@ -1,0 +1,10 @@
+# 05:10: IMDb refreshes the file daily; after the 04:20 backup so the two do not overlap.
+[Unit]
+Description=Daily IMDb ratings for Watch
+
+[Timer]
+OnCalendar=*-*-* 05:10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,20 @@
+node_modules
+.wrangler
+/.svelte-kit
+/build
+.DS_Store
+.env
+.env.*
+!.env.example
+.dev.vars*
+!.dev.vars.example
+vite.config.ts.timestamp-*
+test-results
+playwright-report
+/screenshots
+worker-configuration.d.ts
+wrangler-dev.log
+
+# Python bytecode from the IMDb loader's tests
+__pycache__/
+wrangler.deploy.jsonc

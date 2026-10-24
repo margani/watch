@@ -1,0 +1,81 @@
+{
+	"name": "watch",
+	"private": true,
+	"version": "0.1.0",
+	"type": "module",
+	"engines": {
+		"node": ">=22.17"
+	},
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "wrangler dev --port 4173",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "npm run gen && svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"lint": "prettier --check . && eslint .",
+		"format": "prettier --write .",
+		"test": "vitest run",
+		"test:e2e": "playwright test",
+		"gen": "wrangler types --env-file .dev.vars.example --strict-vars false",
+		"db:generate": "drizzle-kit generate",
+		"db:migrate:local": "wrangler d1 migrations apply DB --local",
+		"ci:local": "bash scripts/ci-local.sh",
+		"auth:schema": "auth generate --config scripts/auth-schema.config.ts --output src/lib/server/db/auth.schema.ts --yes"
+	},
+	"devDependencies": {
+		"@axe-core/playwright": "^4.13.0",
+		"@eslint/js": "^10.0.1",
+		"@fontsource-variable/inter": "^5.3.0",
+		"@fontsource-variable/literata": "^5.3.0",
+		"@lucide/svelte": "^1.54.0",
+		"@playwright/test": "^1.64.0",
+		"@sveltejs/adapter-cloudflare": "^8.0.0",
+		"@sveltejs/kit": "^3.0.1",
+		"@sveltejs/vite-plugin-svelte": "^7.3.1",
+		"@tailwindcss/vite": "^4.3.3",
+		"@types/node": "^24.19.1",
+		"auth": "^1.7.7",
+		"better-auth": "^1.7.7",
+		"drizzle-kit": "^0.31.11",
+		"drizzle-orm": "^0.45.4",
+		"eslint": "^10.4.1",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.23.1",
+		"globals": "^17.13.0",
+		"prettier": "^3.9.9",
+		"prettier-plugin-svelte": "^4.1.1",
+		"prettier-plugin-tailwindcss": "^0.8.1",
+		"svelte": "^5.57.2",
+		"svelte-check": "^4.7.6",
+		"tailwindcss": "^4.3.3",
+		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.71.1",
+		"vite": "^8.3.4",
+		"vitest": "^4.1.11",
+		"wrangler": "^4.149.0",
+		"zod": "^4.6.5"
+	},
+	"overrides": {
+		"better-auth": {
+			"@sveltejs/kit": "$@sveltejs/kit"
+		}
+	},
+	"imports": {
+		"#lib/*": "./src/lib/*"
+	},
+	"allowScripts": {
+		"esbuild@0.28.2": true,
+		"esbuild@0.25.12": true,
+		"esbuild@0.18.20": true,
+		"workerd@1.20261006.1": true,
+		"@sveltejs/kit@3.0.1": true,
+		"core-js": false,
+		"es5-ext": false
+	},
+	"description": "Keep track of the films and series you want to watch, are watching and have seen.",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/margani/watch.git"
+	}
+}

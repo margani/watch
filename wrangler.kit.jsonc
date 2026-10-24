@@ -1,0 +1,13 @@
+// Read only by the SvelteKit adapter at build time: it writes its Worker to `main`, so `main` here
+// is the build output, while wrangler.jsonc's `main` is src/worker.ts, which wraps it with the
+// cron. Keep `assets` the same as in wrangler.jsonc.
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	"name": "watch",
+	"compatibility_date": "2026-10-05",
+	"main": ".svelte-kit/cloudflare/_worker.js",
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	}
+}

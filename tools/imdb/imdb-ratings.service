@@ -1,0 +1,14 @@
+# IMDb ratings into Watch's D1, as a systemd user unit: copy imdb_ratings.py to
+# ~/.local/share/imdb-ratings/ and fill in the account, database and token file below.
+[Unit]
+Description=IMDb ratings into Watch
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/.local/share/imdb-ratings/imdb_ratings.py
+Environment=ACCOUNT_ID=
+Environment=DATABASE_ID=
+Environment=TOKEN_FILE=%h/.config/watch/d1-token
+Nice=10

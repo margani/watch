@@ -1,0 +1,31 @@
+{
+	"$schema": "./node_modules/wrangler/config-schema.json",
+	// Works as it is for local development. To run your own copy on Cloudflare, see README.md
+	// (Run your own): put your database's id below and your address in ORIGIN, or leave this file
+	// alone and let scripts/deploy.sh fill them in from environment variables.
+	"name": "watch",
+	"compatibility_date": "2026-10-05",
+	"compatibility_flags": ["nodejs_als"],
+	// SvelteKit's built Worker wrapped with the news cron (src/worker.ts).
+	"main": "src/worker.ts",
+	// 40 titles a run, so every title on anyone's list is looked up about once a day.
+	"triggers": { "crons": ["*/15 * * * *"] },
+	"assets": {
+		"binding": "ASSETS",
+		"directory": ".svelte-kit/cloudflare"
+	},
+	"observability": { "enabled": true },
+	"vars": {
+		"ORIGIN": "http://localhost:5173"
+	},
+	// Password-reset and news mail through Cloudflare Email Sending. Optional: without an onboarded
+	// sending domain the app still runs and says what is missing.
+	"send_email": [{ "name": "EMAIL" }],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "watch",
+			"migrations_dir": "migrations"
+		}
+	]
+}
