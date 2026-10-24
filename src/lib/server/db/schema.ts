@@ -56,11 +56,17 @@ export const watchlist = sqliteTable(
 			.default(sql`(unixepoch())`),
 		updatedAt: integer('updated_at', { mode: 'timestamp' })
 			.notNull()
-			.default(sql`(unixepoch())`)
+			.default(sql`(unixepoch())`),
+		/**
+		 * The viewer's own order within the tab, smallest first (#21). A title put on the list or moved
+		 * to another tab goes above the rest there.
+		 */
+		position: real('position').notNull().default(0)
 	},
 	(t) => [
 		primaryKey({ columns: [t.userId, t.titleId] }),
-		index('watchlist_status_idx').on(t.userId, t.status, t.updatedAt)
+		index('watchlist_status_idx').on(t.userId, t.status, t.updatedAt),
+		index('watchlist_position_idx').on(t.userId, t.status, t.position)
 	]
 );
 
