@@ -40,7 +40,8 @@
 					<div class="min-w-0">
 						<h2 class="leading-snug font-semibold group-hover:text-accent">{h.title}</h2>
 						<p class="text-xs text-muted">
-							{h.media === 'tv' ? 'Series' : 'Film'}{#if h.year}&nbsp;· {h.year}{/if}
+							{h.media === 'tv' ? 'Series' : 'Film'}{#if h.year}&nbsp;· {h.year}{/if}{#if h.imdb}&nbsp;·
+								<span class="font-semibold text-ink">IMDb {h.imdb.rating.toFixed(1)}</span>{/if}
 						</p>
 						{#if h.overview}
 							<p class="mt-1 line-clamp-2 text-sm text-ink-2">{h.overview}</p>
