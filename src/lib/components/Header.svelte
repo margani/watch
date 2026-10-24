@@ -6,9 +6,11 @@
 	import Search from '@lucide/svelte/icons/search';
 	import Tv from '@lucide/svelte/icons/tv';
 	import LogOut from '@lucide/svelte/icons/log-out';
+	import MonitorDown from '@lucide/svelte/icons/monitor-down';
 	import Shield from '@lucide/svelte/icons/shield';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import ThemePicker from './ThemePicker.svelte';
+	import { installApp, pwa } from '#lib/pwa.svelte.ts';
 
 	interface Props {
 		user: { name: string; email: string; image?: string | null } | null;
@@ -105,6 +107,16 @@
 							<p class="truncate text-sm font-medium">{user.name}</p>
 							<p class="truncate text-xs text-muted">{user.email}</p>
 						</div>
+						{#if pwa.install}
+							<button
+								type="button"
+								role="menuitem"
+								class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2"
+								onclick={installApp}
+							>
+								<MonitorDown class="size-4" /> Install app
+							</button>
+						{/if}
 						<a
 							href="/account"
 							role="menuitem"
