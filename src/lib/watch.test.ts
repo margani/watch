@@ -7,7 +7,10 @@ import {
 	newerParts,
 	newsBetween,
 	partsFromTmdb,
+	personFromTmdb,
 	posterUrl,
+	profileUrl,
+	trailerOf,
 	progressLabel,
 	providersFromTmdb,
 	seasonFromTmdb,
@@ -47,7 +50,13 @@ const series = {
 	vote_count: 21390,
 	external_ids: { imdb_id: 'tt0944947' },
 	aggregate_credits: {
-		cast: [{ name: 'Emilia Clarke', roles: [{ character: 'Daenerys Targaryen' }] }]
+		cast: [
+			{
+				name: 'Emilia Clarke',
+				profile_path: '/86jeYFV40KctQMDQIWhJ5oviNGj.jpg',
+				roles: [{ character: 'Daenerys Targaryen' }]
+			}
+		]
 	}
 };
 
@@ -65,10 +74,28 @@ const film = {
 	vote_average: 8.2,
 	vote_count: 20000,
 	credits: {
-		cast: [{ name: 'Mark Hamill', character: 'Luke Skywalker' }],
+		cast: [
+			{ name: 'Mark Hamill', character: 'Luke Skywalker', profile_path: null },
+			{ name: 'Carrie Fisher', character: 'Leia', profile_path: '//evil.example/x.jpg' }
+		],
 		crew: [
-			{ name: 'George Lucas', job: 'Director' },
-			{ name: 'George Lucas', job: 'Writer' }
+			{ id: 1, name: 'George Lucas', job: 'Director' },
+			{ id: 1, name: 'George Lucas', job: 'Writer' },
+			{ id: 491, name: 'John Williams', job: 'Original Music Composer' }
+		]
+	},
+	videos: {
+		results: [
+			{ site: 'YouTube', key: 'teaser00001', type: 'Teaser', official: true, iso_639_1: 'en' },
+			{ site: 'Vimeo', key: 'vimeo000001', type: 'Trailer', official: true, iso_639_1: 'en' },
+			{
+				site: 'YouTube',
+				key: 'trailer0001',
+				type: 'Trailer',
+				official: true,
+				iso_639_1: 'en',
+				name: 'Official Trailer'
+			}
 		]
 	}
 };
@@ -104,7 +131,14 @@ describe('detailsFromTmdb', () => {
 			runtime: 80,
 			lastEpisode: { season: 8, number: 6, name: 'The Iron Throne', airDate: '2019-05-19' },
 			nextEpisode: null,
-			cast: [{ name: 'Emilia Clarke', role: 'Daenerys Targaryen' }]
+			cast: [
+				{
+					name: 'Emilia Clarke',
+					role: 'Daenerys Targaryen',
+					// The photo beside the name (#16).
+					profilePath: '/86jeYFV40KctQMDQIWhJ5oviNGj.jpg'
+				}
+			]
 		});
 	});
 
@@ -115,8 +149,36 @@ describe('detailsFromTmdb', () => {
 			imdbId: 'tt0076759',
 			genres: ['Adventure', 'Science Fiction'],
 			seasons: null,
-			cast: [{ name: 'Mark Hamill', role: 'Luke Skywalker' }]
+			cast: [
+				{ name: 'Mark Hamill', role: 'Luke Skywalker', profilePath: null },
+				{ name: 'Carrie Fisher', role: 'Leia', profilePath: '//evil.example/x.jpg' }
+			]
 		});
+	});
+
+	it('keeps the people behind a film with their ids, and its trailer (#18-#20)', () => {
+		expect(detailsFromTmdb('movie', film)).toMatchObject({
+			makerCredits: [{ id: 1, name: 'George Lucas' }],
+			music: [{ id: 491, name: 'John Williams' }],
+			trailer: { key: 'trailer0001', name: 'Official Trailer' }
+		});
+	});
+
+	it("finds a series composer among each person's jobs", () => {
+		const d = detailsFromTmdb('tv', {
+			...series,
+			created_by: [{ id: 9813, name: 'David Benioff' }],
+			aggregate_credits: {
+				cast: [],
+				crew: [
+					{ id: 10851, name: 'Ramin Djawadi', jobs: [{ job: 'Original Music Composer' }] },
+					{ id: 7, name: 'Someone', jobs: [{ job: 'Editor' }] }
+				]
+			}
+		})!;
+		expect(d.makerCredits).toEqual([{ id: 9813, name: 'David Benioff' }]);
+		expect(d.music).toEqual([{ id: 10851, name: 'Ramin Djawadi' }]);
+		expect(d.trailer).toBeNull();
 	});
 
 	it('has no rating without votes', () => {
@@ -126,11 +188,109 @@ describe('detailsFromTmdb', () => {
 	});
 });
 
+describe('trailerOf', () => {
+	it('takes a YouTube trailer over a teaser, and nothing that is not a plain key', () => {
+		expect(
+			trailerOf({
+				results: [
+					{ site: 'YouTube', key: 'teaser00001', type: 'Teaser' },
+					{ site: 'YouTube', key: 'clip0000001', type: 'Clip' }
+				]
+			})
+		).toEqual({ key: 'teaser00001', name: 'Trailer' });
+		expect(
+			trailerOf({ results: [{ site: 'YouTube', key: 'x"><script>', type: 'Trailer' }] })
+		).toBeNull();
+		expect(trailerOf(undefined)).toBeNull();
+	});
+});
+
+describe('personFromTmdb', () => {
+	it('lists each title once per kind of work, characters and jobs together', () => {
+		const p = personFromTmdb({
+			id: 491,
+			name: 'John Williams',
+			profile_path: '/w.jpg',
+			biography: 'Composer.',
+			known_for_department: 'Sound',
+			combined_credits: {
+				cast: [
+					{
+						id: 11,
+						media_type: 'movie',
+						title: 'Star Wars',
+						release_date: '1977-05-25',
+						character: 'Himself',
+						vote_count: 5
+					}
+				],
+				crew: [
+					{
+						id: 11,
+						media_type: 'movie',
+						title: 'Star Wars',
+						release_date: '1977-05-25',
+						job: 'Original Music Composer',
+						vote_count: 20000
+					},
+					{
+						id: 11,
+						media_type: 'movie',
+						title: 'Star Wars',
+						release_date: '1977-05-25',
+						job: 'Music',
+						vote_count: 20000
+					},
+					{
+						id: 1399,
+						media_type: 'tv',
+						name: 'A Series',
+						first_air_date: '2011-04-17',
+						job: 'Theme Song Performance',
+						vote_count: 3
+					},
+					{ id: 12, media_type: 'movie', title: 'Other', job: 'Producer' },
+					{ id: 13, media_type: 'person', name: 'Not a title', job: 'Director' }
+				]
+			}
+		})!;
+		expect(p).toMatchObject({
+			id: 491,
+			name: 'John Williams',
+			knownFor: 'music',
+			profilePath: '/w.jpg'
+		});
+		expect(p.credits).toEqual([
+			expect.objectContaining({ kind: 'acting', tmdbId: 11, role: 'Himself', votes: 5 }),
+			expect.objectContaining({
+				kind: 'music',
+				media: 'movie',
+				tmdbId: 11,
+				role: null,
+				votes: 20000
+			}),
+			expect.objectContaining({
+				kind: 'music',
+				media: 'tv',
+				tmdbId: 1399,
+				role: 'Theme Song Performance'
+			})
+		]);
+	});
+
+	it('needs an id and a name', () => {
+		expect(personFromTmdb({ id: 5 })).toBeNull();
+	});
+});
+
 describe('helpers', () => {
 	it('builds poster URLs on TMDB only from a plain path', () => {
 		expect(posterUrl('/abc.jpg')).toBe('https://image.tmdb.org/t/p/w342/abc.jpg');
 		expect(posterUrl('//evil.example/x.jpg')).toBeNull();
 		expect(posterUrl(null)).toBeNull();
+		expect(profileUrl('/abc.jpg')).toBe('https://image.tmdb.org/t/p/w185/abc.jpg');
+		expect(profileUrl('//evil.example/x.jpg')).toBeNull();
+		expect(profileUrl(undefined)).toBeNull();
 	});
 
 	it('formats air dates the same in every timezone', () => {
