@@ -1,7 +1,7 @@
 <script lang="ts">
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Poster from '#lib/components/Poster.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
 	import { titleHref, type TitleHit } from '#lib/watch.ts';
 	import {
 		groupViewings,
@@ -227,4 +227,4 @@
 	</ul>
 {/if}
 
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />

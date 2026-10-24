@@ -2,7 +2,7 @@
 	import CastPhoto from '#lib/components/CastPhoto.svelte';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Poster from '#lib/components/Poster.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
 	import {
 		formatAirDate,
 		PERSON_KIND_LABEL,
@@ -139,4 +139,4 @@
 	</p>
 {/if}
 
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />

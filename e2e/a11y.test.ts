@@ -45,7 +45,8 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 			['actor', '/person/910001'],
 			['composer', '/person/910020'],
 			['account', '/account'],
-			['privacy', '/privacy']
+			['privacy', '/privacy'],
+			['about', '/about']
 		];
 		for (const [label, url, ready] of pages) {
 			await page.goto(url);
