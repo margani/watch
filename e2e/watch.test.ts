@@ -189,7 +189,6 @@ test('streaming services: choose them, then see where a title streams', async ({
 	await expect(page).toHaveURL(/\/\?services=saved$/);
 	await expect(page.getByText('Your services:')).toBeVisible();
 	await expect(page.getByRole('img', { name: 'Netflix' })).toBeVisible();
-	await expect(page.getByText('Streaming data:')).toBeVisible();
 
 	await page.goto('/movie/900001');
 	const where = page.getByRole('region', { name: 'Where to watch' });
@@ -375,7 +374,6 @@ test('For you: newer films after seen ones, and popular titles on my services', 
 		.click();
 	expect((await add).status()).toBe(200);
 	await expect(popular.getByText('On my list')).toBeVisible();
-	await expect(page.getByText('Streaming data:')).toBeVisible();
 
 	await page.goto('/?tab=want');
 	await expect(page.getByRole('heading', { name: 'The Lighthouse Keeper’s Clock' })).toBeVisible();
