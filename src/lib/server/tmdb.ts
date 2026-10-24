@@ -8,6 +8,8 @@ import {
 	detailsFromTmdb,
 	hitFromTmdb,
 	partsFromTmdb,
+	personFromTmdb,
+	type PersonDetails,
 	providerList,
 	seasonFromTmdb,
 	type CollectionPart,
@@ -22,6 +24,7 @@ import {
 	demoDetails,
 	demoDiscover,
 	demoImdbId,
+	demoPerson,
 	DEMO_PROVIDERS,
 	DEMO_REGIONS,
 	demoSearch,
@@ -87,8 +90,8 @@ export async function fetchDetails(media: Media, tmdbId: number): Promise<TitleD
 		// watch/providers: where it streams, by country, from JustWatch through TMDB.
 		append_to_response:
 			media === 'movie'
-				? 'credits,watch/providers'
-				: 'aggregate_credits,external_ids,watch/providers'
+				? 'credits,watch/providers,videos'
+				: 'aggregate_credits,external_ids,watch/providers,videos'
 	});
 	const d = detailsFromTmdb(media, r);
 	if (!d) throw new TmdbError('not-found', 'TMDB has no such title.');
@@ -163,6 +166,19 @@ export async function collectionParts(id: number): Promise<CollectionPart[]> {
 	if (tmdbDemo()) return demoCollection(id);
 	if (!tmdbLive()) throw notConfigured();
 	return partsFromTmdb(await get(`/collection/${id}`));
+}
+
+/** A person and every film and series they worked on (#18, #20). */
+export async function fetchPerson(id: number): Promise<PersonDetails> {
+	if (tmdbDemo()) {
+		const p = demoPerson(id);
+		if (!p) throw new TmdbError('not-found', 'No such demo person.');
+		return p;
+	}
+	if (!tmdbLive()) throw notConfigured();
+	const p = personFromTmdb(await get(`/person/${id}`, { append_to_response: 'combined_credits' }));
+	if (!p) throw new TmdbError('not-found', 'TMDB has no such person.');
+	return p;
 }
 
 /** A title's IMDb id, for search and discover results, which do not carry it. */

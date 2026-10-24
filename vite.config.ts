@@ -20,7 +20,9 @@ function commit() {
 export default defineConfig({
 	define: {
 		__APP_VERSION__: JSON.stringify(pkg.version),
-		__APP_COMMIT__: JSON.stringify(commit())
+		__APP_COMMIT__: JSON.stringify(commit()),
+		// For the About page (#22).
+		__APP_BUILT__: JSON.stringify(new Date().toISOString())
 	},
 	plugins: [
 		tailwindcss(),
@@ -53,6 +55,8 @@ export default defineConfig({
 					],
 					'font-src': ['self', 'data:'],
 					'connect-src': ['self'],
+					// Trailers, only once play is tapped (#19).
+					'frame-src': ['https://www.youtube-nocookie.com'],
 					'form-action': ['self', 'https://accounts.google.com'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],

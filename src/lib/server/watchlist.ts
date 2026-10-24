@@ -158,7 +158,10 @@ export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 	if (usable) {
 		// A day old: shown as it is while TMDB is asked after the answer, so the page doesn't wait
 		// for TMDB (#7). The next visit gets the new copy, and its news.
-		if (Date.now() - stored.fetchedAt.getTime() >= FRESH_MS)
+		// Stored before cast photos, people's pages and trailers (#16-#20): the same, so they show
+		// from the next visit.
+		const older = !('music' in stored.details);
+		if (older || Date.now() - stored.fetchedAt.getTime() >= FRESH_MS)
 			waitUntil(
 				fetchDetails(media, tmdbId)
 					.then((details) => saveTitle(db, details, stored))
@@ -216,14 +219,74 @@ export async function setEntry(
 		status === 'watched' && had?.status !== 'watched'
 			? (change.watchedAt ?? now)
 			: (had?.watchedAt ?? null);
+	// New on the list, or moved to another tab: above everything there (#21). A rating alone
+	// leaves it where the viewer put it.
+	const moved = had?.status !== status;
+	const position = moved ? await topOf(db, userId, status) : undefined;
 	await db
 		.insert(watchlist)
-		.values({ userId, titleId, status, rating, watchedAt, addedAt: now, updatedAt: now })
+		.values({
+			userId,
+			titleId,
+			status,
+			rating,
+			watchedAt,
+			addedAt: now,
+			updatedAt: now,
+			position: position ?? 0
+		})
 		.onConflictDoUpdate({
 			target: [watchlist.userId, watchlist.titleId],
-			set: { status, rating, watchedAt, updatedAt: now }
+			set: {
+				status,
+				rating,
+				watchedAt,
+				updatedAt: now,
+				...(position === undefined ? {} : { position })
+			}
 		});
 	return { status, rating, watchedAt };
+}
+
+/** A position above every title in the tab. */
+async function topOf(db: Db, userId: string, status: WatchStatus) {
+	const [row] = await db
+		.select({ top: sql<number | null>`min(${watchlist.position})` })
+		.from(watchlist)
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)));
+	return (row?.top ?? 0) - 1;
+}
+
+/**
+ * Puts a title at this place in its tab (#21), 0 being the top, as the viewer dropped it there.
+ * Returns false when it isn't on the viewer's list.
+ */
+export async function moveEntry(db: Db, userId: string, media: Media, tmdbId: number, to: number) {
+	const stored = await storedTitle(db, media, tmdbId);
+	if (!stored) return false;
+	const [row] = await db
+		.select({ status: watchlist.status })
+		.from(watchlist)
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.titleId, stored.id)));
+	if (!row) return false;
+	// The tab as the list shows it, so the place matches what the viewer saw even when positions tie.
+	const tab = await db
+		.select({ titleId: watchlist.titleId })
+		.from(watchlist)
+		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, row.status)))
+		.orderBy(asc(watchlist.position), desc(watchlist.updatedAt), desc(watchTitles.id));
+	const order = tab.map((t) => t.titleId).filter((id) => id !== stored.id);
+	order.splice(Math.max(0, Math.min(to, order.length)), 0, stored.id);
+	// Every title gets its place's number, so ties from older rows can't undo the move.
+	const [first, ...rest] = order.map((titleId, k) =>
+		db
+			.update(watchlist)
+			.set({ position: k })
+			.where(and(eq(watchlist.userId, userId), eq(watchlist.titleId, titleId)))
+	);
+	await db.batch([first, ...rest]);
+	return true;
 }
 
 export async function removeEntry(db: Db, userId: string, media: Media, tmdbId: number) {
@@ -254,7 +317,7 @@ export async function listWatch(db: Db, userId: string, status: WatchStatus) {
 		.from(watchlist)
 		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
 		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)))
-		.orderBy(desc(watchlist.updatedAt), desc(watchTitles.id));
+		.orderBy(asc(watchlist.position), desc(watchlist.updatedAt), desc(watchTitles.id));
 	return rows.map(({ details, ...r }) => {
 		const d = JSON.parse(details) as TitleDetails;
 		return {
@@ -618,4 +681,14 @@ export async function imdbRatingsFor(db: Db, ids: (string | null | undefined)[])
 		for (const r of rows) out.set(r.imdbId, { rating: r.rating, votes: r.votes });
 	}
 	return out;
+}
+
+/** The viewer's status for every title on their list, by `media:tmdbId`: marks on a person's page. */
+export async function statusesOnList(db: Db, userId: string) {
+	const rows = await db
+		.select({ media: watchTitles.media, tmdbId: watchTitles.tmdbId, status: watchlist.status })
+		.from(watchlist)
+		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
+		.where(eq(watchlist.userId, userId));
+	return new Map(rows.map((r) => [`${r.media}:${r.tmdbId}`, r.status as WatchStatus]));
 }

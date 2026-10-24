@@ -5,6 +5,7 @@ import type { Db } from '#lib/server/db/index.ts';
 declare global {
 	const __APP_VERSION__: string;
 	const __APP_COMMIT__: string;
+	const __APP_BUILT__: string;
 
 	namespace App {
 		interface Locals {

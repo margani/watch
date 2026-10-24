@@ -7,6 +7,7 @@
 	import Tv from '@lucide/svelte/icons/tv';
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import MonitorDown from '@lucide/svelte/icons/monitor-down';
+	import Info from '@lucide/svelte/icons/info';
 	import Shield from '@lucide/svelte/icons/shield';
 	import UserRound from '@lucide/svelte/icons/user-round';
 	import ThemePicker from './ThemePicker.svelte';
@@ -33,7 +34,11 @@
 	const onForYou = $derived(path === '/for-you');
 	const onServices = $derived(path === '/services');
 	// Title pages and the import belong to the list; the account pages to no section.
-	const other: Record<string, string> = { '/account': 'Account', '/privacy': 'Privacy' };
+	const other: Record<string, string> = {
+		'/account': 'Account',
+		'/privacy': 'Privacy',
+		'/about': 'About'
+	};
 	const onList = $derived(!onSearch && !onForYou && !onServices && !(path in other));
 
 	// On a phone the sections are a tab bar at the bottom, within thumb reach, and the top row
@@ -130,6 +135,13 @@
 							class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2"
 						>
 							<Shield class="size-4" /> Privacy
+						</a>
+						<a
+							href="/about"
+							role="menuitem"
+							class="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm hover:bg-surface-2"
+						>
+							<Info class="size-4" /> About
 						</a>
 						<form method="POST" action="/signout">
 							<button

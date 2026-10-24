@@ -30,6 +30,50 @@ export interface TitleHit {
 export interface Person {
 	name: string;
 	role: string | null;
+	/** TMDB's person id and profile picture; titles stored before #16 have neither. */
+	id?: number | null;
+	profilePath?: string | null;
+}
+
+/** Someone behind a title, linked to their page (#18, #20). */
+export interface Credit {
+	id: number | null;
+	name: string;
+}
+
+/** A title's trailer on YouTube (#19). */
+export interface Trailer {
+	key: string;
+	name: string;
+}
+
+export const PERSON_KINDS = ['acting', 'directing', 'music'] as const;
+export type PersonKind = (typeof PERSON_KINDS)[number];
+export const PERSON_KIND_LABEL: Record<PersonKind, string> = {
+	acting: 'Acting',
+	directing: 'Directing',
+	music: 'Music'
+};
+
+/** One film or series on a person's page. */
+export interface PersonCredit extends TitleHit {
+	kind: PersonKind;
+	/** The character, or the job when it isn't the usual one (Creator, Music). */
+	role: string | null;
+	votes: number;
+}
+
+export interface PersonDetails {
+	id: number;
+	name: string;
+	profilePath: string | null;
+	biography: string;
+	birthday: string | null;
+	deathday: string | null;
+	placeOfBirth: string | null;
+	/** The tab the page opens on. */
+	knownFor: PersonKind | null;
+	credits: PersonCredit[];
 }
 
 /** Everything the title page shows, as stored in `watch_titles.details`. */
@@ -59,6 +103,11 @@ export interface TitleDetails extends TitleHit {
 	providers?: Record<string, Availability>;
 	/** The series of films it belongs to, for "a newer one is out"; films only. */
 	collection?: { id: number; name: string } | null;
+	/** Directors (a series' creators) with their ids; `makers` keeps the names for older copies. */
+	makerCredits?: Credit[];
+	/** Composers; titles stored before #20 have no such field and are fetched again. */
+	music?: Credit[];
+	trailer?: Trailer | null;
 }
 
 /** A streaming service, shop or rental as TMDB names it. */
@@ -95,6 +144,11 @@ export function logoUrl(path: string | null) {
 /** TMDB's image server; sizes from its configuration (w92…w780, original). */
 export function posterUrl(path: string | null, size: 'w185' | 'w342' | 'w500' = 'w342') {
 	return path && /^\/[\w.-]+$/.test(path) ? `https://image.tmdb.org/t/p/${size}${path}` : null;
+}
+
+/** A person's picture on TMDB, only from a plain path; 185 px wide is sharp at 56 px on a phone. */
+export function profileUrl(path: string | null | undefined) {
+	return path && /^\/[\w.-]+$/.test(path) ? `https://image.tmdb.org/t/p/w185${path}` : null;
 }
 
 export function titleHref(t: { media: Media; tmdbId: number }) {
@@ -149,6 +203,8 @@ export function detailsFromTmdb(media: Media, r: Record<string, unknown>): Title
 		.slice(0, 12)
 		.map((c) => ({
 			name: text(c.name) ?? '',
+			id: num(c.id),
+			profilePath: text(c.profile_path),
 			// Series list a person's characters under roles, films under character.
 			role:
 				media === 'movie'
@@ -165,6 +221,17 @@ export function detailsFromTmdb(media: Media, r: Record<string, unknown>): Title
 					.filter((c) => c.job === 'Director')
 					.map((c) => text(c.name))
 			: list(r.created_by).map((c) => text(c.name));
+	const makerCredits = credits_(
+		media === 'movie' ? list(credits?.crew).filter((c) => c.job === 'Director') : list(r.created_by)
+	);
+	// Films list one job per crew row; series list each person once, their jobs under jobs.
+	const music = credits_(
+		list(credits?.crew).filter((c) =>
+			(media === 'movie' ? [text(c.job)] : list(c.jobs).map((j) => text(j.job))).some(
+				(j) => !!j && COMPOSER_JOBS.has(j)
+			)
+		)
+	).slice(0, 4);
 	const externalIds = (r.external_ids ?? {}) as Record<string, unknown>;
 	const runtimes = Array.isArray(r.episode_run_time) ? r.episode_run_time : [];
 	return {
@@ -193,8 +260,108 @@ export function detailsFromTmdb(media: Media, r: Record<string, unknown>): Title
 		nextEpisode: media === 'tv' ? episode(r.next_episode_to_air) : null,
 		homepage: text(r.homepage),
 		providers: providersFromTmdb(r['watch/providers']),
-		collection: collectionOf(r.belongs_to_collection)
+		collection: collectionOf(r.belongs_to_collection),
+		makerCredits,
+		music,
+		trailer: trailerOf(r.videos)
 	};
+}
+
+const COMPOSER_JOBS = new Set([
+	'Original Music Composer',
+	'Music',
+	'Composer',
+	'Theme Song Performance'
+]);
+
+/** Crew rows as credits, each person once, in TMDB's order. */
+function credits_(rows: Record<string, unknown>[]): Credit[] {
+	const seen = new Set<string>();
+	const out: Credit[] = [];
+	for (const c of rows) {
+		const name = text(c.name);
+		if (!name) continue;
+		const id = num(c.id);
+		const key = id ? `#${id}` : name;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		out.push({ id, name });
+	}
+	return out;
+}
+
+/** The trailer to show: YouTube only; an official English trailer first, then any trailer, then a teaser. */
+export function trailerOf(videos: unknown): Trailer | null {
+	const rows = list((videos as { results?: unknown } | null)?.results).filter(
+		(v) => v.site === 'YouTube' && typeof v.key === 'string' && /^[\w-]{6,20}$/.test(v.key)
+	);
+	const score = (v: Record<string, unknown>) =>
+		(v.type === 'Trailer' ? 4 : v.type === 'Teaser' ? 2 : 0) +
+		(v.official === true ? 1 : 0) +
+		(v.iso_639_1 === 'en' ? 1 : 0);
+	const best = rows
+		.filter((v) => v.type === 'Trailer' || v.type === 'Teaser')
+		.sort((a, b) => score(b) - score(a))[0];
+	return best ? { key: String(best.key), name: text(best.name) ?? 'Trailer' } : null;
+}
+
+const KIND_OF_DEPARTMENT: Record<string, PersonKind> = {
+	Acting: 'acting',
+	Directing: 'directing',
+	Sound: 'music'
+};
+
+/**
+ * TMDB's /person/{id}?append_to_response=combined_credits as the person page shows it: each film
+ * or series once per kind of work, its characters or jobs together.
+ */
+export function personFromTmdb(r: Record<string, unknown>): PersonDetails | null {
+	const id = num(r.id);
+	const name = text(r.name);
+	if (!id || !name) return null;
+	const cc = (r.combined_credits ?? {}) as Record<string, unknown>;
+	const byKey = new Map<string, PersonCredit & { roles: Set<string> }>();
+	const add = (row: Record<string, unknown>, kind: PersonKind, role: string | null) => {
+		const hit = hitFromTmdb(row);
+		if (!hit) return;
+		const key = `${kind}:${hit.media}:${hit.tmdbId}`;
+		const c = byKey.get(key) ?? {
+			...hit,
+			kind,
+			role: null,
+			votes: num(row.vote_count) ?? 0,
+			roles: new Set()
+		};
+		if (role) c.roles.add(role);
+		byKey.set(key, c);
+	};
+	for (const row of list(cc.cast)) add(row, 'acting', text(row.character));
+	for (const row of list(cc.crew)) {
+		const job = text(row.job);
+		if (job === 'Director') add(row, 'directing', null);
+		else if (job === 'Creator') add(row, 'directing', 'Creator');
+		else if (job && COMPOSER_JOBS.has(job))
+			add(row, 'music', job === 'Original Music Composer' || job === 'Music' ? null : job);
+	}
+	const credits = [...byKey.values()].map(({ roles, ...c }) => ({
+		...c,
+		role: [...roles].join(' / ') || null
+	}));
+	return {
+		id,
+		name,
+		profilePath: text(r.profile_path),
+		biography: text(r.biography) ?? '',
+		birthday: text(r.birthday),
+		deathday: text(r.deathday),
+		placeOfBirth: text(r.place_of_birth),
+		knownFor: KIND_OF_DEPARTMENT[text(r.known_for_department) ?? ''] ?? null,
+		credits
+	};
+}
+
+export function personHref(id: number) {
+	return `/person/${id}`;
 }
 
 function collectionOf(c: unknown): { id: number; name: string } | null {

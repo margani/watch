@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
 	import type { PageProps } from './$types';
 
 	let { data, form }: PageProps = $props();
@@ -95,4 +95,4 @@
 </section>
 
 <JustWatchCredit />
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />

@@ -1,10 +1,12 @@
 <script lang="ts">
+	import CastPhoto from '#lib/components/CastPhoto.svelte';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Episodes from '#lib/components/Episodes.svelte';
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
+	import TrailerPlayer from '#lib/components/TrailerPlayer.svelte';
 	import {
 		episodeLabel,
 		formatAirDate,
@@ -12,7 +14,9 @@
 		RATING_MAX,
 		serviceLink,
 		ownLinkHref,
+		personHref,
 		STATUS_LABEL,
+		type Credit,
 		WATCH_STATUSES,
 		type WatchStatus
 	} from '#lib/watch.ts';
@@ -20,6 +24,8 @@
 
 	let { data }: PageProps = $props();
 	const d = $derived(data.details);
+	// Copies stored before #20 have the names only.
+	const makers = $derived<Credit[]>(d.makerCredits ?? d.makers.map((name) => ({ id: null, name })));
 	const links = $derived(
 		data.links
 			.map((l) => ({ name: l.name, href: ownLinkHref(l, d) }))
@@ -65,6 +71,14 @@
 	);
 </script>
 
+{#snippet people(list: Credit[])}
+	{#each list as m, i (i)}{#if i},
+		{/if}{#if m.id}<a
+				href={personHref(m.id)}
+				class="underline-offset-2 hover:text-accent hover:underline">{m.name}</a
+			>{:else}{m.name}{/if}{/each}
+{/snippet}
+
 <svelte:head><title>{d.title} · Watch</title></svelte:head>
 
 <a href="/" class="mb-4 inline-block text-sm text-ink-2 hover:text-ink">← Films and series</a>
@@ -101,13 +115,20 @@
 			</p>
 		{/if}
 
-		<section class="mt-5 card p-4" aria-label="My list">
-			<!-- Three large, equal choices: the main thing done on this page. -->
-			<div class="grid grid-cols-3 gap-2" role="group" aria-label="Status">
+		{#if d.trailer}<TrailerPlayer trailer={d.trailer} title={d.title} />{/if}
+
+		<section class="mt-5 sm:max-w-md" aria-label="My list">
+			<!-- One segmented control on one line: the main thing done on this page, without a card
+			     around it (#17). -->
+			<div
+				class="grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1"
+				role="group"
+				aria-label="Status"
+			>
 				{#each WATCH_STATUSES as s (s)}
 					<button
 						type="button"
-						class="btn-ghost h-12 rounded-2xl px-2 text-sm leading-tight whitespace-normal aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink sm:text-base"
+						class="h-11 rounded-full px-2 text-sm font-medium whitespace-nowrap text-ink-2 transition-colors hover:text-ink disabled:opacity-60 aria-pressed:bg-accent aria-pressed:text-accent-ink aria-pressed:shadow-sm sm:text-base"
 						aria-pressed={status === s}
 						disabled={busy}
 						onclick={() => send({ status: s })}>{STATUS_LABEL[s]}</button
@@ -115,31 +136,31 @@
 				{/each}
 			</div>
 			{#if status}
-				<button
-					type="button"
-					class="mt-2 h-11 text-sm text-ink-2 underline hover:text-ink"
-					disabled={busy}
-					onclick={() => send(null)}>Remove from my list</button
-				>
-			{/if}
-			{#if status}
-				<label class="mt-3 flex items-center gap-2 text-sm text-ink-2">
-					My rating
-					<select
-						class="field h-9 w-28 pr-8 text-sm text-ink"
-						value={rating ?? ''}
+				<div class="mt-1 flex items-center justify-between gap-3 px-1">
+					<label class="flex items-center gap-1 text-sm text-ink-2">
+						My rating
+						<select
+							class="h-11 cursor-pointer rounded-lg bg-transparent px-1 text-sm font-medium text-ink hover:bg-surface-2"
+							value={rating ?? ''}
+							disabled={busy}
+							onchange={(e) => {
+								const v = (e.currentTarget as HTMLSelectElement).value;
+								send({ rating: v ? Number(v) : null });
+							}}
+						>
+							<option value="">None</option>
+							{#each Array.from({ length: RATING_MAX }, (_, i) => RATING_MAX - i) as n (n)}
+								<option value={n}>{n}/10</option>
+							{/each}
+						</select>
+					</label>
+					<button
+						type="button"
+						class="h-11 px-1 text-sm text-ink-2 hover:text-ink hover:underline"
 						disabled={busy}
-						onchange={(e) => {
-							const v = (e.currentTarget as HTMLSelectElement).value;
-							send({ rating: v ? Number(v) : null });
-						}}
+						onclick={() => send(null)}>Remove from my list</button
 					>
-						<option value="">None</option>
-						{#each Array.from({ length: RATING_MAX }, (_, i) => RATING_MAX - i) as n (n)}
-							<option value={n}>{n}/10</option>
-						{/each}
-					</select>
-				</label>
+				</div>
 			{/if}
 			{#if failed}<p class="mt-2 text-sm text-heart" role="alert">
 					Could not save, try again.
@@ -265,18 +286,36 @@
 			/>
 		{/if}
 
-		{#if d.makers.length}
-			<p class="mt-5 text-sm">
-				<span class="text-muted">{d.media === 'tv' ? 'Created by' : 'Directed by'}</span>
-				{d.makers.join(', ')}
-			</p>
+		{#if makers.length || d.music?.length}
+			<dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+				{#if makers.length}
+					<dt class="text-muted">{d.media === 'tv' ? 'Created by' : 'Directed by'}</dt>
+					<dd>{@render people(makers)}</dd>
+				{/if}
+				{#if d.music?.length}
+					<dt class="text-muted">Music by</dt>
+					<dd>{@render people(d.music)}</dd>
+				{/if}
+			</dl>
 		{/if}
 		{#if d.cast.length}
 			<h2 class="mt-5 mb-2 text-sm font-semibold">Cast</h2>
-			<ul class="grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+			<ul class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
 				{#each d.cast as c, i (i)}
 					<li>
-						{c.name}{#if c.role}<span class="text-muted">&nbsp;· {c.role}</span>{/if}
+						<svelte:element
+							this={c.id ? 'a' : 'div'}
+							href={c.id ? personHref(c.id) : undefined}
+							class="group flex items-center gap-3"
+						>
+							<CastPhoto name={c.name} path={c.profilePath} />
+							<span class="min-w-0">
+								<span class="block font-medium {c.id ? 'group-hover:text-accent' : ''}"
+									>{c.name}</span
+								>
+								{#if c.role}<span class="block text-muted">{c.role}</span>{/if}
+							</span>
+						</svelte:element>
 					</li>
 				{/each}
 			</ul>
@@ -301,4 +340,4 @@
 	</div>
 </article>
 
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />
