@@ -7,19 +7,22 @@
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" type="image/svg+xml" />
 		<link rel="manifest" href="%sveltekit.assets%/manifest.webmanifest" />
 		<link rel="apple-touch-icon" href="%sveltekit.assets%/icons/apple-touch-icon.png" />
-		<!-- One colour, set below and by syncThemeColor: the installed app paints its window buttons
+		<!-- One colour, set below and by applyTheme: the installed app paints its window buttons
 		     with it, so it follows the app's theme, not the system's. -->
-		<meta name="theme-color" content="#f7f5f1" />
+		<meta name="theme-color" content="#f5f1e8" />
 		<meta name="apple-mobile-web-app-title" content="Watch" />
 		<script nonce="%sveltekit.nonce%">
-			// Set the theme before first paint so dark mode does not flash white.
+			// The theme before first paint, so a dark or coloured theme does not flash Paper.
+			// Mirrors readChoice/resolveTheme/applyTheme in src/lib/themes.ts (a unit test keeps them in step).
 			try {
-				const t = localStorage.getItem('theme');
-				const dark = t ? t === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-				document.documentElement.classList.toggle('dark', dark);
-				document
-					.querySelector('meta[name="theme-color"]')
-					.setAttribute('content', dark ? '#131210' : '#f7f5f1');
+				const s = localStorage.getItem('theme');
+				const c = s === 'light' ? 'paper' : s === 'dark' ? 'ink' : s;
+				const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+				const t = ['paper', 'ink', 'sage', 'plum'].includes(c) ? c : dark ? 'ink' : 'paper';
+				const bg = { paper: '#f5f1e8', ink: '#16130f', sage: '#eef2ea', plum: '#f4eff6' };
+				document.documentElement.dataset.theme = t;
+				document.documentElement.classList.toggle('dark', t === 'ink');
+				document.querySelector('meta[name="theme-color"]').setAttribute('content', bg[t]);
 			} catch {}
 		</script>
 		%sveltekit.head%
