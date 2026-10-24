@@ -53,6 +53,12 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 			if (ready) await page.locator(ready).first().waitFor();
 			problems.push(...(await audit(page, label)));
 		}
+		// The search box's suggestions, open (#28).
+		await page.goto('/');
+		await page.getByRole('combobox', { name: 'Search films and series' }).fill('light');
+		await page.getByRole('option', { name: /Harbour Lights/ }).waitFor();
+		await page.getByRole('combobox', { name: 'Search films and series' }).press('ArrowDown');
+		problems.push(...(await audit(page, 'suggestions')));
 		expect(problems).toEqual([]);
 	});
 }
