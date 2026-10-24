@@ -72,24 +72,13 @@ export async function forYou(db: Db, userId: string) {
 		row('tv', 'rated'),
 		row('movie', 'rated')
 	]);
-	// IMDb's rating on every suggestion: the id comes from TMDB (kept a month), the rating
-	// from the nightly copy of IMDb's dataset.
-	const shown = [...newer.values(), ...popularTv, ...popularFilms, ...ratedTv, ...ratedFilms];
-	const ids = new Map<string, string | null>();
-	await Promise.all(
-		[...new Map(shown.map((h) => [`${h.media}:${h.tmdbId}`, h])).values()].map(async (h) => {
-			const id = await cached(`imdb/${h.media}/${h.tmdbId}`, 30 * 24 * HOUR, () =>
-				imdbIdOf(h.media, h.tmdbId)
-			).catch(() => null);
-			ids.set(`${h.media}:${h.tmdbId}`, id);
-		})
-	);
-	const ratings = await imdbRatingsFor(db, [...ids.values()]);
-	const rate = <T extends TitleHit>(list: T[]): (T & { imdb: ImdbRating | null })[] =>
-		list.map((h) => {
-			const id = ids.get(`${h.media}:${h.tmdbId}`);
-			return { ...h, imdb: (id && ratings.get(id)) || null };
-		});
+	const rate = await imdbRater(db, [
+		...newer.values(),
+		...popularTv,
+		...popularFilms,
+		...ratedTv,
+		...ratedFilms
+	]);
 	return {
 		country,
 		services,
@@ -101,4 +90,27 @@ export async function forYou(db: Db, userId: string) {
 		ratedFilms: rate(ratedFilms),
 		failed
 	};
+}
+
+/**
+ * IMDb's rating for results from TMDB's search and discover, which don't carry the IMDb id: the id
+ * comes from TMDB (kept a month, all looked up at once), the rating from the nightly copy of IMDb's
+ * dataset. Returns what adds `imdb` to a list of those results.
+ */
+export async function imdbRater(db: Db, hits: TitleHit[]) {
+	const ids = new Map<string, string | null>();
+	await Promise.all(
+		[...new Map(hits.map((h) => [`${h.media}:${h.tmdbId}`, h])).values()].map(async (h) => {
+			const id = await cached(`imdb/${h.media}/${h.tmdbId}`, 30 * 24 * HOUR, () =>
+				imdbIdOf(h.media, h.tmdbId)
+			).catch(() => null);
+			ids.set(`${h.media}:${h.tmdbId}`, id);
+		})
+	);
+	const ratings = await imdbRatingsFor(db, [...ids.values()]);
+	return <T extends TitleHit>(list: T[]): (T & { imdb: ImdbRating | null })[] =>
+		list.map((h) => {
+			const id = ids.get(`${h.media}:${h.tmdbId}`);
+			return { ...h, imdb: (id && ratings.get(id)) || null };
+		});
 }
