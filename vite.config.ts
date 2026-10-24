@@ -31,6 +31,9 @@ export default defineConfig({
 			},
 			// The adapter builds from wrangler.kit.jsonc (it overwrites that file's `main`); dev
 			// bindings and deploys use wrangler.jsonc, whose entry adds the cron.
+			// Registered by #lib/pwa.svelte.ts, in production builds only, so Update decides when a
+			// new version takes over.
+			serviceWorker: { register: false },
 			adapter: adapter({
 				config: 'wrangler.kit.jsonc',
 				platformProxy: { configPath: 'wrangler.jsonc' }
