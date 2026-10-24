@@ -5,7 +5,7 @@
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
 	import TrailerPlayer from '#lib/components/TrailerPlayer.svelte';
 	import {
 		episodeLabel,
@@ -340,4 +340,4 @@
 	</div>
 </article>
 
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Poster from '#lib/components/Poster.svelte';
-	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
+	import DemoNote from '#lib/components/DemoNote.svelte';
 	import WatchSearch from '#lib/components/WatchSearch.svelte';
 	import { titleHref } from '#lib/watch.ts';
 	import type { PageProps } from './$types';
@@ -53,4 +53,4 @@
 	</ul>
 {/if}
 
-<TmdbCredit demo={data.demo} />
+<DemoNote demo={data.demo} />

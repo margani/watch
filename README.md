@@ -72,6 +72,7 @@ Everything else is optional and off until you set it:
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Sign in with Google (redirect URI `{ORIGIN}/api/auth/callback/google`)                                                                                                                     |
 | `OMDB_API_KEY`                             | Rotten Tomatoes and Metacritic scores ([omdbapi.com](https://www.omdbapi.com/); the free key allows 1,000 lookups a day)                                                                   |
+| `SOURCE_URL`                               | The source repository the About page links, with its commit; set it when you run a fork (default: the upstream repository)                                                                 |
 | `EMAIL_FROM` (a var)                       | Password-reset and news emails through [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/); the address must be on a domain onboarded for sending on your account |
 | `tools/imdb/`                              | IMDb ratings, loaded nightly from IMDb's non-commercial dataset by a small Python job                                                                                                      |
 

@@ -9,7 +9,8 @@ test('watchlist: search, add, change status and rating, remove; private to the a
 	await page.goto('/');
 	await expect(page.getByRole('heading', { level: 1, name: 'Films and series' })).toBeVisible();
 	await expect(page.getByText('Demo titles: TMDB is not set up here')).toBeVisible();
-	await expect(page.getByText('This product uses the TMDB API')).toBeVisible();
+	// TMDB's notice is on the About page now (#22), not under every page.
+	await expect(page.getByText('This product uses the TMDB API')).toHaveCount(0);
 
 	// The demo film's IMDb rating, as the nightly IMDb load would have it; CI starts with none.
 	d1(
@@ -188,7 +189,7 @@ test('streaming services: choose them, then see where a title streams', async ({
 	await expect(page).toHaveURL(/\/\?services=saved$/);
 	await expect(page.getByText('Your services:')).toBeVisible();
 	await expect(page.getByRole('img', { name: 'Netflix' })).toBeVisible();
-	await expect(page.getByText('data by JustWatch')).toBeVisible();
+	await expect(page.getByText('Streaming data:')).toBeVisible();
 
 	await page.goto('/movie/900001');
 	const where = page.getByRole('region', { name: 'Where to watch' });
@@ -374,7 +375,7 @@ test('For you: newer films after seen ones, and popular titles on my services', 
 		.click();
 	expect((await add).status()).toBe(200);
 	await expect(popular.getByText('On my list')).toBeVisible();
-	await expect(page.getByText('data by JustWatch')).toBeVisible();
+	await expect(page.getByText('Streaming data:')).toBeVisible();
 
 	await page.goto('/?tab=want');
 	await expect(page.getByRole('heading', { name: 'The Lighthouse Keeper’s Clock' })).toBeVisible();
