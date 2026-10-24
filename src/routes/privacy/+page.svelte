@@ -40,7 +40,7 @@
 
 	<h2>Your choices</h2>
 	<p>
-		On your <a href="/account" class="text-accent hover:underline">account page</a> you can download all
-		of it as a file, or delete the account, which removes everything at once.
+		On your <a href="/account" class="text-accent underline">account page</a> you can download all of
+		it as a file, or delete the account, which removes everything at once.
 	</p>
 </article>
