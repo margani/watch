@@ -219,14 +219,88 @@ export async function setEntry(
 		status === 'watched' && had?.status !== 'watched'
 			? (change.watchedAt ?? now)
 			: (had?.watchedAt ?? null);
+	// New on the list, or moved to another tab: above everything there (#21). A rating alone
+	// leaves it where the viewer put it.
+	const moved = had?.status !== status;
+	const position = moved ? await topOf(db, userId, status) : undefined;
 	await db
 		.insert(watchlist)
-		.values({ userId, titleId, status, rating, watchedAt, addedAt: now, updatedAt: now })
+		.values({
+			userId,
+			titleId,
+			status,
+			rating,
+			watchedAt,
+			addedAt: now,
+			updatedAt: now,
+			position: position ?? 0
+		})
 		.onConflictDoUpdate({
 			target: [watchlist.userId, watchlist.titleId],
-			set: { status, rating, watchedAt, updatedAt: now }
+			set: {
+				status,
+				rating,
+				watchedAt,
+				updatedAt: now,
+				...(position === undefined ? {} : { position })
+			}
 		});
 	return { status, rating, watchedAt };
+}
+
+/** A position above every title in the tab. */
+async function topOf(db: Db, userId: string, status: WatchStatus) {
+	const [row] = await db
+		.select({ top: sql<number | null>`min(${watchlist.position})` })
+		.from(watchlist)
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)));
+	return (row?.top ?? 0) - 1;
+}
+
+export type Move = 'top' | 'up' | 'down';
+
+/**
+ * Moves a title within its tab (#21): to the top, or past the title above or below it. Returns
+ * false when it isn't on the viewer's list.
+ */
+export async function moveEntry(db: Db, userId: string, media: Media, tmdbId: number, move: Move) {
+	const stored = await storedTitle(db, media, tmdbId);
+	if (!stored) return false;
+	const mine = and(eq(watchlist.userId, userId), eq(watchlist.titleId, stored.id));
+	const [row] = await db
+		.select({ status: watchlist.status, position: watchlist.position })
+		.from(watchlist)
+		.where(mine);
+	if (!row) return false;
+	const status = row.status as WatchStatus;
+	if (move === 'top') {
+		await db
+			.update(watchlist)
+			.set({ position: await topOf(db, userId, status) })
+			.where(mine);
+		return true;
+	}
+	// The tab as the list shows it, so a move matches what the viewer sees even when positions tie.
+	const tab = await db
+		.select({ titleId: watchlist.titleId, position: watchlist.position })
+		.from(watchlist)
+		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)))
+		.orderBy(asc(watchlist.position), desc(watchlist.updatedAt), desc(watchTitles.id));
+	const i = tab.findIndex((t) => t.titleId === stored.id);
+	const j = move === 'up' ? i - 1 : i + 1;
+	if (j < 0 || j >= tab.length) return true;
+	// Every title gets its place's number, so ties from older rows can't undo the move.
+	const order = tab.map((t) => t.titleId);
+	[order[i], order[j]] = [order[j], order[i]];
+	const [first, ...rest] = order.map((titleId, k) =>
+		db
+			.update(watchlist)
+			.set({ position: k })
+			.where(and(eq(watchlist.userId, userId), eq(watchlist.titleId, titleId)))
+	);
+	await db.batch([first, ...rest]);
+	return true;
 }
 
 export async function removeEntry(db: Db, userId: string, media: Media, tmdbId: number) {
@@ -257,7 +331,7 @@ export async function listWatch(db: Db, userId: string, status: WatchStatus) {
 		.from(watchlist)
 		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
 		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)))
-		.orderBy(desc(watchlist.updatedAt), desc(watchTitles.id));
+		.orderBy(asc(watchlist.position), desc(watchlist.updatedAt), desc(watchTitles.id));
 	return rows.map(({ details, ...r }) => {
 		const d = JSON.parse(details) as TitleDetails;
 		return {

@@ -4,7 +4,10 @@
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
 	import WatchSearch from '#lib/components/WatchSearch.svelte';
-	import { invalidate } from '$app/navigation';
+	import ArrowDown from '@lucide/svelte/icons/arrow-down';
+	import ArrowUp from '@lucide/svelte/icons/arrow-up';
+	import ArrowUpToLine from '@lucide/svelte/icons/arrow-up-to-line';
+	import { invalidate, invalidateAll } from '$app/navigation';
 	import {
 		episodeLabel,
 		formatAirDate,
@@ -18,6 +21,34 @@
 
 	let { data }: PageProps = $props();
 	let clearing = $state(false);
+
+	// The viewer's own order (#21): moves show at once, then the list is loaded again.
+	let reordering = $state(false);
+	let moved = $state<typeof data.titles | null>(null);
+	const titles = $derived(moved ?? data.titles);
+	let moveFailed = $state(false);
+	type Move = 'top' | 'up' | 'down';
+
+	let moving = $state(false);
+	async function move(i: number, how: Move) {
+		// One at a time: a second tap computed from a move the server hasn't made yet could undo it.
+		if (moving) return;
+		moving = true;
+		const list = [...titles];
+		const [t] = list.splice(i, 1);
+		list.splice(how === 'top' ? 0 : how === 'up' ? i - 1 : i + 1, 0, t);
+		moved = list;
+		moveFailed = false;
+		const res = await fetch(`/api/${t.media}/${t.tmdbId}/move`, {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ move: how })
+		}).catch(() => null);
+		if (!res?.ok) moveFailed = true;
+		await invalidateAll();
+		moved = null;
+		moving = false;
+	}
 	let emailOverride = $state<boolean | null>(null);
 	const emailNews = $derived(emailOverride ?? data.emailNews);
 	let saveFailed = $state(false);
@@ -108,7 +139,7 @@
 <!-- overflow-y-hidden: overflow-x alone makes the row scroll vertically too, and the tabs hang 1px
 	below it (-mb-px) so a scrollbar showed beside them. -->
 <nav
-	class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
+	class="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
 	aria-label="Watch lists"
 >
 	{#each WATCH_STATUSES as s (s)}
@@ -125,7 +156,19 @@
 	{/each}
 </nav>
 
-{#if !data.titles.length}
+<div class="mb-4 flex min-h-11 items-center justify-end gap-3">
+	{#if moveFailed}<p class="text-sm text-heart" role="alert">Could not move it, try again.</p>{/if}
+	{#if titles.length > 1}
+		<button
+			type="button"
+			class="h-11 rounded-full px-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink aria-pressed:bg-accent aria-pressed:text-accent-ink"
+			aria-pressed={reordering}
+			onclick={() => (reordering = !reordering)}>{reordering ? 'Done' : 'Reorder'}</button
+		>
+	{/if}
+</div>
+
+{#if !titles.length}
 	<div class="flex flex-col items-center gap-2 card px-6 py-16 text-center">
 		<p class="font-serif text-lg font-semibold">Nothing here yet</p>
 		<p class="max-w-sm text-sm text-ink-2">{empty[data.tab]}</p>
@@ -133,9 +176,9 @@
 {:else}
 	<!-- One title a row, with room for the details (the owner chose the Editorial design, #1). -->
 	<ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
-		{#each data.titles as t (`${t.media}-${t.tmdbId}`)}
-			<li class="border-b border-line">
-				<a href={titleHref(t)} class="group flex items-center gap-4 py-4">
+		{#each titles as t, i (`${t.media}-${t.tmdbId}`)}
+			<li class="flex items-center gap-2 border-b border-line">
+				<a href={titleHref(t)} class="group flex min-w-0 flex-1 items-center gap-4 py-4">
 					<Poster
 						title={t.title}
 						path={t.posterPath}
@@ -174,6 +217,34 @@
 						{/if}
 					</div>
 				</a>
+				{#if reordering}
+					<div class="flex shrink-0 flex-col" role="group" aria-label="Move {t.title}">
+						<button
+							type="button"
+							class="icon-btn disabled:opacity-30"
+							aria-label="To the top"
+							title="To the top"
+							disabled={moving || i === 0}
+							onclick={() => move(i, 'top')}><ArrowUpToLine class="size-5" /></button
+						>
+						<button
+							type="button"
+							class="icon-btn disabled:opacity-30"
+							aria-label="Move up"
+							title="Move up"
+							disabled={moving || i === 0}
+							onclick={() => move(i, 'up')}><ArrowUp class="size-5" /></button
+						>
+						<button
+							type="button"
+							class="icon-btn disabled:opacity-30"
+							aria-label="Move down"
+							title="Move down"
+							disabled={moving || i === titles.length - 1}
+							onclick={() => move(i, 'down')}><ArrowDown class="size-5" /></button
+						>
+					</div>
+				{/if}
 			</li>
 		{/each}
 	</ul>
