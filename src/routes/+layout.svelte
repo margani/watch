@@ -1,8 +1,12 @@
 <script lang="ts">
 	import './layout.css';
 	import { onMount } from 'svelte';
+	import { afterNavigate } from '$app/navigation';
 	import { navigating } from '$app/state';
+	import { dev } from '$app/env';
 	import Header from '#lib/components/Header.svelte';
+	import UpdateBanner from '#lib/components/UpdateBanner.svelte';
+	import { checkForUpdate, startPwa, watchInstallPrompt } from '#lib/pwa.svelte.ts';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -10,7 +14,12 @@
 	// Lets end-to-end tests wait until the page reacts to input instead of racing hydration.
 	onMount(() => {
 		document.documentElement.dataset.hydrated = '';
+		watchInstallPrompt();
+		// The service worker exists only in production builds.
+		if (!dev) startPwa().catch((e) => console.error('service worker:', e));
 	});
+	// Moving between pages loads none, so the browser's own update check never runs.
+	afterNavigate(checkForUpdate);
 </script>
 
 {#if navigating.to}
@@ -20,6 +29,7 @@
 {/if}
 
 <Header user={data.user} news={data.news} />
+<UpdateBanner />
 
 <main class="mx-auto max-w-6xl px-4 pt-6 pb-[calc(4rem+var(--tabbar,0px))] sm:px-6">
 	{@render children()}

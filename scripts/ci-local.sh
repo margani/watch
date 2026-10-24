@@ -19,4 +19,13 @@ step 'IMDb loader tests'; python3 -m unittest discover -s tools/imdb
 step Build; npm run build
 step 'Local database'; npm run db:migrate:local
 step 'End-to-end tests'; npm run test:e2e
+# The service worker exists only in production builds, so installing and the update flow (#4, which
+# rebuilds mid-test) run against the built Worker under `wrangler dev`.
+step 'Install and update against the built Worker'
+if ss -ltn "sport = :4173" | grep -q LISTEN; then echo "port 4173 is in use; stop that server first" >&2; exit 1; fi
+WRANGLER_SEND_METRICS=false setsid npx wrangler dev --port 4173 > .wrangler/ci-local-wrangler.log 2>&1 &
+wrangler_pid=$!
+trap 'kill -- -$wrangler_pid; cleanup' EXIT
+for _ in $(seq 1 90); do curl -sf -o /dev/null http://localhost:4173/version && break; sleep 1; done
+E2E_BASE_URL=http://localhost:4173 npx playwright test e2e/install.test.ts
 step "All checks passed on $(git rev-parse --short HEAD 2>/dev/null || echo 'no commit')$(git diff --quiet HEAD 2>/dev/null || echo ' (with uncommitted changes)')"
