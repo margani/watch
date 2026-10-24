@@ -52,7 +52,7 @@
 	};
 </script>
 
-<svelte:head><title>Watch · Watch</title></svelte:head>
+<svelte:head><title>My list · Watch</title></svelte:head>
 
 <h1 class="mb-4 font-serif text-2xl font-semibold max-sm:sr-only sm:text-3xl">Films and series</h1>
 
@@ -72,9 +72,9 @@
 </p>
 
 {#if data.news.length}
-	<section class="mb-8 card p-4" aria-labelledby="news-heading">
+	<section class="mb-8 rounded-2xl bg-accent-soft p-4" aria-labelledby="news-heading">
 		<div class="mb-3 flex items-center justify-between gap-3">
-			<h2 id="news-heading" class="font-serif text-lg font-semibold">New</h2>
+			<h2 id="news-heading" class="text-sm font-bold tracking-wide text-accent uppercase">New</h2>
 			<button type="button" class="btn-ghost h-9" disabled={clearing} onclick={clearNews}
 				>Mark all as seen</button
 			>
@@ -90,8 +90,8 @@
 							showTitle={false}
 							class="w-10 shrink-0"
 						/>
-						<div class="min-w-0 text-sm">
-							<p class="font-semibold group-hover:text-accent">{n.title}</p>
+						<div class="min-w-0">
+							<p class="text-lg font-semibold group-hover:text-accent">{n.title}</p>
 							<p class="text-ink-2">
 								{newsLabel(n)}{#if n.airDate},<span class="whitespace-nowrap"
 										>&nbsp;{formatAirDate(n.airDate)}</span
@@ -115,12 +115,12 @@
 		<a
 			href="/?tab={s}"
 			aria-current={data.tab === s ? 'page' : undefined}
-			class="-mb-px shrink-0 border-b-2 px-3 py-2 text-sm font-medium whitespace-nowrap {data.tab ===
+			class="-mb-px flex h-12 shrink-0 items-center gap-1.5 border-b-[3px] px-3 text-base font-semibold whitespace-nowrap {data.tab ===
 			s
 				? 'border-accent text-ink'
 				: 'border-transparent text-ink-2 hover:text-ink'}"
 			>{STATUS_LABEL[s]}
-			<span class="text-muted">{data.counts[s]}</span></a
+			<span class="font-normal text-muted">{data.counts[s]}</span></a
 		>
 	{/each}
 </nav>
@@ -131,39 +131,46 @@
 		<p class="max-w-sm text-sm text-ink-2">{empty[data.tab]}</p>
 	</div>
 {:else}
-	<ul class="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+	<!-- One title a row, with room for the details (the owner chose the Editorial design, #1). -->
+	<ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
 		{#each data.titles as t (`${t.media}-${t.tmdbId}`)}
-			<li>
-				<a href={titleHref(t)} class="group flex flex-col gap-2">
+			<li class="border-b border-line">
+				<a href={titleHref(t)} class="group flex items-center gap-4 py-4">
 					<Poster
 						title={t.title}
 						path={t.posterPath}
-						class="group-hover:ring-2 group-hover:ring-accent"
+						size="w185"
+						showTitle={false}
+						class="w-16 shrink-0 group-hover:ring-2 group-hover:ring-accent"
 					/>
-					<div>
-						<h2 class="line-clamp-2 text-sm leading-snug font-semibold group-hover:text-accent">
+					<div class="min-w-0 flex-1">
+						<h2 class="line-clamp-2 text-lg leading-snug font-semibold group-hover:text-accent">
 							{t.title}
 						</h2>
-						<p class="text-xs text-muted">
+						<p class="mt-0.5 text-sm text-ink-2">
 							{t.media === 'tv' ? 'Series' : 'Film'}{#if t.year}&nbsp;· {t.year}{/if}{#if t.rating}&nbsp;·
 								yours {t.rating}/10{/if}{#if t.imdb}&nbsp;· IMDb {t.imdb.rating.toFixed(1)}{/if}
 						</p>
 						{#if t.media === 'tv' && t.seenEpisodes}
-							<p class="mt-0.5 text-xs text-ink-2">
+							<p class="mt-0.5 text-sm text-ink-2">
 								{progressLabel(t.seenEpisodes, t.episodes)} watched
 							</p>
 						{/if}
-						{#if t.onMine.length}
-							<div class="mt-1 flex items-center gap-1" role="group" aria-label="On your services">
-								{#each t.onMine as p (p.id)}<ProviderLogo provider={p} class="size-5" />{/each}
-							</div>
-						{/if}
 						{#if data.tab === 'watching' && t.nextEpisode}
-							<p class="mt-0.5 text-xs text-ink-2">
+							<p class="mt-0.5 text-sm text-ink-2">
 								Next: {episodeLabel(t.nextEpisode)}{#if t.nextEpisode.airDate},<span
 										class="whitespace-nowrap">&nbsp;{formatAirDate(t.nextEpisode.airDate)}</span
 									>{/if}
 							</p>
+						{/if}
+						{#if t.onMine.length}
+							<div
+								class="mt-1.5 flex items-center gap-1"
+								role="group"
+								aria-label="On your services"
+							>
+								{#each t.onMine as p (p.id)}<ProviderLogo provider={p} class="size-6" />{/each}
+							</div>
 						{/if}
 					</div>
 				</a>

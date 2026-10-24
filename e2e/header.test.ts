@@ -22,10 +22,7 @@ for (const width of [390, 360])
 			expect(box.height).toBeGreaterThanOrEqual(56);
 			expect(box.x + box.width).toBeLessThanOrEqual(width);
 		}
-		for (const t of [
-			page.getByLabel('Account'),
-			page.getByRole('button', { name: /theme|dark|light/i })
-		]) {
+		for (const t of [page.getByLabel('Account'), page.getByLabel(/^Theme:/)]) {
 			const box = (await t.boundingBox())!;
 			expect(box.width).toBeGreaterThanOrEqual(40);
 			expect(box.height).toBeGreaterThanOrEqual(40);

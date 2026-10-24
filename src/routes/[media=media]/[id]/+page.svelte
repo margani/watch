@@ -102,25 +102,26 @@
 		{/if}
 
 		<section class="mt-5 card p-4" aria-label="My list">
-			<div class="flex flex-wrap gap-2" role="group" aria-label="Status">
+			<!-- Three large, equal choices: the main thing done on this page. -->
+			<div class="grid grid-cols-3 gap-2" role="group" aria-label="Status">
 				{#each WATCH_STATUSES as s (s)}
 					<button
 						type="button"
-						class="btn-ghost h-9 aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink"
+						class="btn-ghost h-12 rounded-2xl px-2 text-sm leading-tight whitespace-normal aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink sm:text-base"
 						aria-pressed={status === s}
 						disabled={busy}
 						onclick={() => send({ status: s })}>{STATUS_LABEL[s]}</button
 					>
 				{/each}
-				{#if status}
-					<button
-						type="button"
-						class="btn-ghost h-9 text-muted"
-						disabled={busy}
-						onclick={() => send(null)}>Remove from my list</button
-					>
-				{/if}
 			</div>
+			{#if status}
+				<button
+					type="button"
+					class="mt-2 h-11 text-sm text-ink-2 underline hover:text-ink"
+					disabled={busy}
+					onclick={() => send(null)}>Remove from my list</button
+				>
+			{/if}
 			{#if status}
 				<label class="mt-3 flex items-center gap-2 text-sm text-ink-2">
 					My rating
