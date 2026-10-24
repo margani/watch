@@ -40,7 +40,9 @@ log=$(mktemp)
 npx wrangler deploy --config "$config" 2>&1 | tee "$log"
 grep -q "Uploaded $WATCH_WORKER " "$log" || { echo "expected to deploy $WATCH_WORKER" >&2; exit 1; }
 want=${WORKERS_CI_COMMIT_SHA:-$(git rev-parse HEAD)}
-for _ in $(seq 1 12); do
+# A custom domain's first deploy creates its DNS record, which took over a minute to resolve on
+# the first production deploy, so the check waits up to three minutes.
+for _ in $(seq 1 36); do
   got=$(curl -fsS "$WATCH_ORIGIN/version" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).commit))' || true)
   [ "$got" = "$want" ] && { echo "Live: $got"; exit 0; }
   sleep 5
