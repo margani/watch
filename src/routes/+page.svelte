@@ -4,10 +4,9 @@
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import TmdbCredit from '#lib/components/TmdbCredit.svelte';
 	import WatchSearch from '#lib/components/WatchSearch.svelte';
-	import ArrowDown from '@lucide/svelte/icons/arrow-down';
-	import ArrowUp from '@lucide/svelte/icons/arrow-up';
-	import ArrowUpToLine from '@lucide/svelte/icons/arrow-up-to-line';
 	import { invalidate, invalidateAll } from '$app/navigation';
+	import { tick } from 'svelte';
+	import { holdToDrag } from '#lib/hold-to-drag.ts';
 	import {
 		episodeLabel,
 		formatAirDate,
@@ -22,33 +21,70 @@
 	let { data }: PageProps = $props();
 	let clearing = $state(false);
 
-	// The viewer's own order (#21): moves show at once, then the list is loaded again.
-	let reordering = $state(false);
-	let moved = $state<typeof data.titles | null>(null);
-	const titles = $derived(moved ?? data.titles);
+	// The viewer's own order (#21): hold a title and drag it; Alt and the arrow keys with a keyboard.
+	// A move shows at once, then the list is loaded again.
+	type Row = (typeof data.titles)[number];
+	const keyOf = (t: Row) => `${t.media}-${t.tmdbId}`;
+	let moved = $state<Row[] | null>(null);
+	let drag = $state<{ from: number; to: number; dx: number; dy: number } | null>(null);
+	const placed = (list: Row[], from: number, to: number) => {
+		const l = [...list];
+		l.splice(to, 0, ...l.splice(from, 1));
+		return l;
+	};
+	const shown = $derived(moved ?? data.titles);
+	const titles = $derived(drag ? placed(shown, drag.from, drag.to) : shown);
+	const draggedKey = $derived(drag ? keyOf(shown[drag.from]) : null);
 	let moveFailed = $state(false);
-	type Move = 'top' | 'up' | 'down';
+	let announce = $state('');
+	let listEl = $state<HTMLUListElement>();
+	// Moves are sent one after another, each against the order the one before left, so a quick
+	// second drag never waits and never undoes the first. The list loads again once all are saved.
+	let saving: Promise<void> = Promise.resolve();
+	let unsaved = 0;
 
-	let moving = $state(false);
-	async function move(i: number, how: Move) {
-		// One at a time: a second tap computed from a move the server hasn't made yet could undo it.
-		if (moving) return;
-		moving = true;
-		const list = [...titles];
-		const [t] = list.splice(i, 1);
-		list.splice(how === 'top' ? 0 : how === 'up' ? i - 1 : i + 1, 0, t);
-		moved = list;
+	function commit(from: number, to: number) {
+		if (from === to || to < 0 || to >= shown.length) return;
 		moveFailed = false;
-		const res = await fetch(`/api/${t.media}/${t.tmdbId}/move`, {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ move: how })
-		}).catch(() => null);
-		if (!res?.ok) moveFailed = true;
-		await invalidateAll();
-		moved = null;
-		moving = false;
+		const t = shown[from];
+		moved = placed(shown, from, to);
+		announce = `${t.title} moved to place ${to + 1} of ${shown.length}.`;
+		unsaved++;
+		saving = saving.then(async () => {
+			const res = await fetch(`/api/${t.media}/${t.tmdbId}/move`, {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ to })
+			}).catch(() => null);
+			if (!res?.ok) moveFailed = true;
+			if (--unsaved) return;
+			await invalidateAll();
+			if (!unsaved) moved = null;
+		});
 	}
+
+	function onKey(e: KeyboardEvent, i: number, t: Row) {
+		if (!e.altKey || (e.key !== 'ArrowUp' && e.key !== 'ArrowDown')) return;
+		e.preventDefault();
+		const key = keyOf(t);
+		commit(i, e.key === 'ArrowUp' ? i - 1 : i + 1);
+		// The row's link moved in the page and lost focus on the way.
+		void tick().then(() => listEl?.querySelector<HTMLElement>(`[data-key="${key}"] a`)?.focus());
+	}
+
+	$effect(() => {
+		if (!listEl) return;
+		return holdToDrag(listEl, {
+			rows: () => [...listEl!.children] as HTMLElement[],
+			canStart: () => shown.length > 1,
+			onMove: (from, to, dx, dy) => (drag = { from, to, dx, dy }),
+			onDrop: (from, to) => {
+				drag = null;
+				commit(from, to);
+			},
+			onCancel: () => (drag = null)
+		});
+	});
 	let emailOverride = $state<boolean | null>(null);
 	const emailNews = $derived(emailOverride ?? data.emailNews);
 	let saveFailed = $state(false);
@@ -139,7 +175,7 @@
 <!-- overflow-y-hidden: overflow-x alone makes the row scroll vertically too, and the tabs hang 1px
 	below it (-mb-px) so a scrollbar showed beside them. -->
 <nav
-	class="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
+	class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
 	aria-label="Watch lists"
 >
 	{#each WATCH_STATUSES as s (s)}
@@ -156,17 +192,13 @@
 	{/each}
 </nav>
 
-<div class="mb-4 flex min-h-11 items-center justify-end gap-3">
-	{#if moveFailed}<p class="text-sm text-heart" role="alert">Could not move it, try again.</p>{/if}
-	{#if titles.length > 1}
-		<button
-			type="button"
-			class="h-11 rounded-full px-3 text-sm font-medium text-ink-2 hover:bg-surface-2 hover:text-ink aria-pressed:bg-accent aria-pressed:text-accent-ink"
-			aria-pressed={reordering}
-			onclick={() => (reordering = !reordering)}>{reordering ? 'Done' : 'Reorder'}</button
-		>
-	{/if}
-</div>
+<p class="sr-only" id="order-help">
+	Hold a title, then drag it to put it in your own order. With a keyboard: Alt and the arrow keys.
+</p>
+<p class="sr-only" aria-live="polite">{announce}</p>
+{#if moveFailed}<p class="mt-3 text-sm text-heart" role="alert">
+		Could not move it, try again.
+	</p>{/if}
 
 {#if !titles.length}
 	<div class="flex flex-col items-center gap-2 card px-6 py-16 text-center">
@@ -175,10 +207,29 @@
 	</div>
 {:else}
 	<!-- One title a row, with room for the details (the owner chose the Editorial design, #1). -->
-	<ul class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3">
-		{#each titles as t, i (`${t.media}-${t.tmdbId}`)}
-			<li class="flex items-center gap-2 border-b border-line">
-				<a href={titleHref(t)} class="group flex min-w-0 flex-1 items-center gap-4 py-4">
+	<!-- Hold a title to lift it, then drag it to its place (#21). -->
+	<ul
+		class="grid grid-cols-1 gap-x-8 sm:grid-cols-2 lg:grid-cols-3"
+		bind:this={listEl}
+		aria-describedby="order-help"
+	>
+		{#each titles as t, i (keyOf(t))}
+			<li
+				data-key={keyOf(t)}
+				class="relative border-b border-line bg-bg select-none [-webkit-touch-callout:none] {draggedKey ===
+				keyOf(t)
+					? 'z-10 rounded-2xl shadow-xl ring-1 ring-line'
+					: ''}"
+				style={draggedKey === keyOf(t) && drag
+					? `transform: translate(${drag.dx}px, ${drag.dy}px) scale(1.02)`
+					: undefined}
+			>
+				<a
+					href={titleHref(t)}
+					class="group flex min-w-0 items-center gap-4 py-4"
+					draggable="false"
+					onkeydown={(e) => onKey(e, i, t)}
+				>
 					<Poster
 						title={t.title}
 						path={t.posterPath}
@@ -217,34 +268,6 @@
 						{/if}
 					</div>
 				</a>
-				{#if reordering}
-					<div class="flex shrink-0 flex-col" role="group" aria-label="Move {t.title}">
-						<button
-							type="button"
-							class="icon-btn disabled:opacity-30"
-							aria-label="To the top"
-							title="To the top"
-							disabled={moving || i === 0}
-							onclick={() => move(i, 'top')}><ArrowUpToLine class="size-5" /></button
-						>
-						<button
-							type="button"
-							class="icon-btn disabled:opacity-30"
-							aria-label="Move up"
-							title="Move up"
-							disabled={moving || i === 0}
-							onclick={() => move(i, 'up')}><ArrowUp class="size-5" /></button
-						>
-						<button
-							type="button"
-							class="icon-btn disabled:opacity-30"
-							aria-label="Move down"
-							title="Move down"
-							disabled={moving || i === titles.length - 1}
-							onclick={() => move(i, 'down')}><ArrowDown class="size-5" /></button
-						>
-					</div>
-				{/if}
 			</li>
 		{/each}
 	</ul>

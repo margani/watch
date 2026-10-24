@@ -257,42 +257,28 @@ async function topOf(db: Db, userId: string, status: WatchStatus) {
 	return (row?.top ?? 0) - 1;
 }
 
-export type Move = 'top' | 'up' | 'down';
-
 /**
- * Moves a title within its tab (#21): to the top, or past the title above or below it. Returns
- * false when it isn't on the viewer's list.
+ * Puts a title at this place in its tab (#21), 0 being the top, as the viewer dropped it there.
+ * Returns false when it isn't on the viewer's list.
  */
-export async function moveEntry(db: Db, userId: string, media: Media, tmdbId: number, move: Move) {
+export async function moveEntry(db: Db, userId: string, media: Media, tmdbId: number, to: number) {
 	const stored = await storedTitle(db, media, tmdbId);
 	if (!stored) return false;
-	const mine = and(eq(watchlist.userId, userId), eq(watchlist.titleId, stored.id));
 	const [row] = await db
-		.select({ status: watchlist.status, position: watchlist.position })
+		.select({ status: watchlist.status })
 		.from(watchlist)
-		.where(mine);
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.titleId, stored.id)));
 	if (!row) return false;
-	const status = row.status as WatchStatus;
-	if (move === 'top') {
-		await db
-			.update(watchlist)
-			.set({ position: await topOf(db, userId, status) })
-			.where(mine);
-		return true;
-	}
-	// The tab as the list shows it, so a move matches what the viewer sees even when positions tie.
+	// The tab as the list shows it, so the place matches what the viewer saw even when positions tie.
 	const tab = await db
-		.select({ titleId: watchlist.titleId, position: watchlist.position })
+		.select({ titleId: watchlist.titleId })
 		.from(watchlist)
 		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
-		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, status)))
+		.where(and(eq(watchlist.userId, userId), eq(watchlist.status, row.status)))
 		.orderBy(asc(watchlist.position), desc(watchlist.updatedAt), desc(watchTitles.id));
-	const i = tab.findIndex((t) => t.titleId === stored.id);
-	const j = move === 'up' ? i - 1 : i + 1;
-	if (j < 0 || j >= tab.length) return true;
+	const order = tab.map((t) => t.titleId).filter((id) => id !== stored.id);
+	order.splice(Math.max(0, Math.min(to, order.length)), 0, stored.id);
 	// Every title gets its place's number, so ties from older rows can't undo the move.
-	const order = tab.map((t) => t.titleId);
-	[order[i], order[j]] = [order[j], order[i]];
 	const [first, ...rest] = order.map((titleId, k) =>
 		db
 			.update(watchlist)
