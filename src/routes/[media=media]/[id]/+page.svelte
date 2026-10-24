@@ -217,15 +217,17 @@
 						</div>
 					{/if}
 				{/each}
-				{#if data.where.link}
-					<a
-						href={data.where.link}
-						class="mt-1 inline-flex items-center gap-1 text-ink-2 hover:text-ink"
-						rel="noopener noreferrer"
-						>Links to each service <ExternalLink class="size-3.5" aria-hidden="true" /></a
-					>
-				{/if}
-				<JustWatchCredit />
+				<p class="mt-1 flex flex-wrap items-center gap-x-3">
+					{#if data.where.link}
+						<a
+							href={data.where.link}
+							class="inline-flex items-center gap-1 text-ink-2 hover:text-ink"
+							rel="noopener noreferrer"
+							>Links to each service <ExternalLink class="size-3.5" aria-hidden="true" /></a
+						>
+					{/if}
+					<JustWatchCredit />
+				</p>
 			{/if}
 			{#if links.length}
 				<ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-label="Your links">

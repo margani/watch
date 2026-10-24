@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
 	import type { PageProps } from './$types';
@@ -94,5 +93,4 @@
 	</form>
 </section>
 
-<JustWatchCredit />
 <DemoNote demo={data.demo} />

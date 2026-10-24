@@ -1,5 +1,4 @@
 <script lang="ts">
-	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
@@ -287,5 +286,4 @@
 	>
 </label>
 
-{#if data.services.length}<JustWatchCredit />{/if}
 <DemoNote demo={data.demo} />
