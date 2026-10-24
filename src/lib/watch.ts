@@ -25,6 +25,14 @@ export interface TitleHit {
 	year: number | null;
 	posterPath: string | null;
 	overview: string;
+	/** How many rated it on TMDB; orders search results (#28). */
+	votes?: number;
+}
+
+/** A search suggestion under the search box (#28): a result with what the results page shows. */
+export interface Suggestion extends TitleHit {
+	imdb: { rating: number; votes: number } | null;
+	status: WatchStatus | null;
 }
 
 export interface Person {
@@ -165,6 +173,35 @@ const list = (a: unknown): Record<string, unknown>[] =>
 	Array.isArray(a) ? a.filter((x) => x && typeof x === 'object') : [];
 
 /** A row of TMDB's /search/multi as a hit; people and anything else are left out. */
+/** Lower case, letters and digits only: "Se7en" and "se7en", "WALL·E" and "wall e" compare equal. */
+const plain = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '');
+
+/**
+ * Search results in the order people expect (#28). TMDB orders by its own title match, so
+ * "Seven" listed Macross 7 and never Se7en. Titles Wikidata matched by another name join in; then
+ * the most rated come first, and an exact title or a Wikidata match counts as about thirty times
+ * the ratings.
+ */
+export function rankHits(query: string, tmdb: TitleHit[], known: TitleHit[]): TitleHit[] {
+	const wanted = plain(query.replace(/\s+(19|20)\d\d$/, ''));
+	const fromWikidata = new Set(known.map((h) => `${h.media}:${h.tmdbId}`));
+	const seen = new Set<string>();
+	const all = [...known, ...tmdb].filter((h) => {
+		const key = `${h.media}:${h.tmdbId}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+	const score = (h: TitleHit) =>
+		Math.log10(1 + (h.votes ?? 0)) +
+		(plain(h.title) === wanted ? 1.5 : 0) +
+		(fromWikidata.has(`${h.media}:${h.tmdbId}`) ? 1.5 : 0);
+	return all
+		.map((h, i) => ({ h, i, s: score(h) }))
+		.sort((a, b) => b.s - a.s || a.i - b.i)
+		.map((x) => x.h);
+}
+
 export function hitFromTmdb(r: Record<string, unknown>, media?: Media): TitleHit | null {
 	const m = media ?? r.media_type;
 	if (m !== 'movie' && m !== 'tv') return null;
@@ -177,7 +214,8 @@ export function hitFromTmdb(r: Record<string, unknown>, media?: Media): TitleHit
 		title,
 		year: yearOf(m === 'movie' ? r.release_date : r.first_air_date),
 		posterPath: text(r.poster_path),
-		overview: text(r.overview) ?? ''
+		overview: text(r.overview) ?? '',
+		votes: num(r.vote_count) ?? 0
 	};
 }
 

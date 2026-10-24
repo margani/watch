@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	rankHits,
 	detailsFromTmdb,
 	formatAirDate,
 	formatRuntime,
@@ -115,6 +116,40 @@ describe('hitFromTmdb', () => {
 		});
 		expect(hitFromTmdb({ id: 5, name: 'Someone', media_type: 'person' })).toBeNull();
 		expect(hitFromTmdb({ id: 6, media_type: 'movie' })).toBeNull();
+	});
+});
+
+describe('rankHits', () => {
+	const hit = (tmdbId: number, title: string, votes: number, media: 'movie' | 'tv' = 'movie') => ({
+		media,
+		tmdbId,
+		title,
+		year: null,
+		posterPath: null,
+		overview: '',
+		votes
+	});
+	const ids = (list: { tmdbId: number }[]) => list.map((h) => h.tmdbId);
+
+	it('puts the well-known title Wikidata found by another name above TMDB’s own matches', () => {
+		// "Seven": TMDB lists Macross 7 first and has no Se7en at all (#28).
+		const tmdb = [hit(1, 'Macross 7', 40, 'tv'), hit(2, 'Furious 7', 10_000), hit(3, 'Seven', 3)];
+		const se7en = hit(807, 'Se7en', 21_000);
+		expect(ids(rankHits('Seven', tmdb, [se7en]))).toEqual([807, 2, 3, 1]);
+		expect(ids(rankHits('seven 1995', tmdb, [se7en]))[0]).toBe(807);
+	});
+
+	it('keeps a much-rated exact title above an obscure one Wikidata matched', () => {
+		const series = hit(95396, 'Severance', 3_000, 'tv');
+		const film = hit(1117953, 'Severance', 4);
+		expect(ids(rankHits('severance', [series, film], [film]))).toEqual([95396, 1117953]);
+	});
+
+	it('lists each title once and keeps TMDB’s order between equals', () => {
+		const a = hit(1, 'Alpha', 0);
+		const b = hit(2, 'Beta', 0);
+		expect(ids(rankHits('x', [a, b, a], [b]))).toEqual([2, 1]);
+		expect(ids(rankHits('x', [a, b], []))).toEqual([1, 2]);
 	});
 });
 

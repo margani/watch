@@ -4,9 +4,12 @@
 // Without TMDB_TOKEN, deployments with TMDB_DEMO=1 (local, sandbox, tests) get the fictional titles in
 // watch-demo.ts; anywhere else the pages say TMDB is not set up, so production never shows made-up titles.
 import { env } from 'cloudflare:workers';
+import { cached } from './cache.ts';
+import { wikidataMatches } from './wikidata.ts';
 import {
 	detailsFromTmdb,
 	hitFromTmdb,
+	rankHits,
 	partsFromTmdb,
 	personFromTmdb,
 	type PersonDetails,
@@ -74,9 +77,29 @@ async function get(path: string, params: Record<string, string> = {}) {
 export async function searchTitles(query: string): Promise<TitleHit[]> {
 	if (tmdbDemo()) return demoSearch(query);
 	if (!tmdbLive()) throw notConfigured();
-	const r = await get('/search/multi', { query, include_adult: 'false', page: '1' });
-	const rows = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
-	return rows.map((row) => hitFromTmdb(row)).filter((h): h is TitleHit => !!h);
+	// Suggestions ask while the viewer types, and Enter then asks the same again (#28).
+	return cached(`tmdb/search/${query.toLowerCase()}`, 3600, async () => {
+		const [r, matched] = await Promise.all([
+			get('/search/multi', { query, include_adult: 'false', page: '1' }),
+			wikidataMatches(query)
+		]);
+		const rows = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
+		const hits = rows.map((row) => hitFromTmdb(row)).filter((h): h is TitleHit => !!h);
+		const known = await Promise.all(
+			matched.map(async (m) => {
+				const had = hits.find((h) => h.media === m.media && h.tmdbId === m.tmdbId);
+				if (had) return had;
+				// A Wikidata entry can point at a title TMDB removed: leave it out.
+				const d = await get(`/${m.media}/${m.tmdbId}`).catch(() => null);
+				return d && hitFromTmdb(d, m.media);
+			})
+		);
+		return rankHits(
+			query,
+			hits,
+			known.filter((h): h is TitleHit => !!h)
+		);
+	});
 }
 
 export async function fetchDetails(media: Media, tmdbId: number): Promise<TitleDetails> {
