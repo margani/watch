@@ -33,13 +33,13 @@ npm run dev                      # http://localhost:5173
 Create an account at `/signup`. Without a `TMDB_TOKEN`, `TMDB_DEMO=1` shows made-up titles
 (search for "lighthouse"), which is also what the tests use.
 
-| Command               | What it does                                                  |
-| --------------------- | ------------------------------------------------------------- |
-| `npm run lint`        | Prettier and ESLint                                           |
-| `npm run check`       | Types (svelte-check)                                          |
-| `npm test`            | Unit tests (Vitest)                                           |
-| `npm run test:e2e`    | End-to-end tests (Playwright, starts the dev server)          |
-| `npm run ci:local`    | All of the above, the way CI runs them                        |
+| Command               | What it does                                                 |
+| --------------------- | ------------------------------------------------------------ |
+| `npm run lint`        | Prettier and ESLint                                          |
+| `npm run check`       | Types (svelte-check)                                         |
+| `npm test`            | Unit tests (Vitest)                                          |
+| `npm run test:e2e`    | End-to-end tests (Playwright, starts the dev server)         |
+| `npm run ci:local`    | All of the above, the way CI runs them                       |
 | `npm run db:generate` | A new migration after changing `src/lib/server/db/schema.ts` |
 
 ## Run your own
@@ -66,12 +66,12 @@ npm run build && npx wrangler deploy
 
 Everything else is optional and off until you set it:
 
-| Setting                                    | Adds                                                                                                                                                                                      |
-| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Sign in with Google (redirect URI `{ORIGIN}/api/auth/callback/google`)                                                                                                                   |
-| `OMDB_API_KEY`                             | Rotten Tomatoes and Metacritic scores ([omdbapi.com](https://www.omdbapi.com/); the free key allows 1,000 lookups a day)                                                                 |
+| Setting                                    | Adds                                                                                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Sign in with Google (redirect URI `{ORIGIN}/api/auth/callback/google`)                                                                                                                     |
+| `OMDB_API_KEY`                             | Rotten Tomatoes and Metacritic scores ([omdbapi.com](https://www.omdbapi.com/); the free key allows 1,000 lookups a day)                                                                   |
 | `EMAIL_FROM` (a var)                       | Password-reset and news emails through [Cloudflare Email Sending](https://developers.cloudflare.com/email-service/); the address must be on a domain onboarded for sending on your account |
-| `tools/imdb/`                              | IMDb ratings, loaded nightly from IMDb's non-commercial dataset by a small Python job                                                                                                     |
+| `tools/imdb/`                              | IMDb ratings, loaded nightly from IMDb's non-commercial dataset by a small Python job                                                                                                      |
 
 To keep your own ids and address out of `wrangler.jsonc`, deploy with `scripts/deploy.sh`
 instead, which takes them from environment variables (see the top of that file). It suits
