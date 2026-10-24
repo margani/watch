@@ -1,5 +1,6 @@
 // The viewer's own films and series. Every query on `watchlist` is scoped to the signed-in
 // viewer, like tags: nobody sees, counts or filters anyone else's list.
+import { waitUntil } from 'cloudflare:workers';
 import { and, asc, desc, eq, inArray, isNull, lt, sql } from 'drizzle-orm';
 import {
 	newsBetween,
@@ -15,6 +16,7 @@ import {
 	type WatchStatus
 } from '#lib/watch.ts';
 import type { Db } from './db';
+import { cached } from './cache.ts';
 import {
 	imdbRatings,
 	user,
@@ -99,17 +101,30 @@ export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 	const stored = await storedTitle(db, media, tmdbId);
 	// Details stored before providers were kept have no providers: fetch them again rather than wait a day.
 	// Demo titles always come from the demo catalogue: a stored copy hid a demo change from the tests.
-	if (
+	const usable =
 		stored &&
 		!tmdbDemo() &&
 		stored.details.providers &&
 		// Films stored before collections were kept have no collection field yet: fetch those once more too.
-		(media !== 'movie' || 'collection' in stored.details) &&
-		Date.now() - stored.fetchedAt.getTime() < FRESH_MS
-	)
+		(media !== 'movie' || 'collection' in stored.details);
+	if (usable) {
+		// A day old: shown as it is while TMDB is asked after the answer, so the page doesn't wait
+		// for TMDB (#7). The next visit gets the new copy, and its news.
+		if (Date.now() - stored.fetchedAt.getTime() >= FRESH_MS)
+			waitUntil(
+				fetchDetails(media, tmdbId)
+					.then((details) => saveTitle(db, details, stored))
+					.catch(() => {})
+			);
 		return { details: stored.details, stale: false };
+	}
 	try {
-		const details = await fetchDetails(media, tmdbId);
+		// Titles nobody keeps (search results, For you) are not stored, so TMDB's answer is kept in
+		// the Workers cache for a few hours instead of being asked on every visit.
+		const details =
+			stored || tmdbDemo()
+				? await fetchDetails(media, tmdbId)
+				: await cached(`tmdb/${media}/${tmdbId}`, 6 * 3600, () => fetchDetails(media, tmdbId));
 		if (stored) await saveTitle(db, details, stored);
 		return { details, stale: false };
 	} catch (e) {

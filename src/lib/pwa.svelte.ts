@@ -1,4 +1,5 @@
 // Service worker registration, the "new version" signal and the install prompt (#4).
+import { invalidateAll } from '$app/navigation';
 interface InstallPrompt extends Event {
 	prompt(): Promise<void>;
 	userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
@@ -31,6 +32,9 @@ export async function startPwa() {
 		if (w && navigator.serviceWorker.controller) pwa.waiting = w;
 	};
 	offer(reg.waiting);
+	navigator.serviceWorker.addEventListener('message', (e) => {
+		if (e.data?.type === 'DATA_UPDATED') dataUpdated(e.data.path);
+	});
 	reg.addEventListener('updatefound', () => {
 		const w = reg.installing;
 		w?.addEventListener('statechange', () => w.state === 'installed' && offer(w));
@@ -65,6 +69,28 @@ export function checkForUpdate() {
 	if (!registration || Date.now() - lastCheck < RECHECK_MS) return;
 	lastCheck = Date.now();
 	registration.update().catch(() => {});
+}
+
+/** Pages whose data changed since the device's copy was shown, by their __data.json path. */
+// Not shown anywhere, so not reactive.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const updated = new Set<string>();
+const dataPath = () => location.pathname.replace(/\/$/, '') + '/__data.json';
+
+/**
+ * The service worker answered with the copy kept on this device and then found newer data. The
+ * page showing it loads again; one that was only preloaded (a title touched on the list) does so
+ * once it opens.
+ */
+function dataUpdated(path: string) {
+	updated.add(path);
+	refreshIfUpdated();
+}
+
+/** The layout calls it after each navigation too. */
+export function refreshIfUpdated() {
+	if (!updated.delete(dataPath())) return;
+	invalidateAll().catch(() => {});
 }
 
 /** Update was tapped: the waiting worker takes over and the page reloads. */

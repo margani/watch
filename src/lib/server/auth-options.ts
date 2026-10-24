@@ -63,7 +63,10 @@ export function authOptions(env: AuthEnv, hooks: AuthHooks = {}) {
 			: undefined,
 		session: {
 			expiresIn: 60 * 60 * 24 * 30,
-			updateAge: 60 * 60 * 24
+			updateAge: 60 * 60 * 24,
+			// The session rides in a signed cookie for five minutes, so a page doesn't first wait for
+			// D1 to look it up (#7). Signing out elsewhere takes effect here within those minutes.
+			cookieCache: { enabled: true, maxAge: 5 * 60 }
 		},
 		databaseHooks: {
 			user: {

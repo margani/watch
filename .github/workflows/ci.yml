@@ -48,7 +48,7 @@ jobs:
         run: |
           npx wrangler dev --port 4173 > wrangler-dev.log 2>&1 &
           for i in $(seq 1 90); do curl -sf -o /dev/null http://localhost:4173/version && break; sleep 1; done
-          E2E_BASE_URL=http://localhost:4173 npx playwright test e2e/install.test.ts
+          E2E_BASE_URL=http://localhost:4173 npx playwright test e2e/install.test.ts e2e/speed.test.ts
       - uses: actions/upload-artifact@v4
         if: failure()
         with:

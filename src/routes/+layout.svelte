@@ -6,7 +6,12 @@
 	import { dev } from '$app/env';
 	import Header from '#lib/components/Header.svelte';
 	import UpdateBanner from '#lib/components/UpdateBanner.svelte';
-	import { checkForUpdate, startPwa, watchInstallPrompt } from '#lib/pwa.svelte.ts';
+	import {
+		checkForUpdate,
+		refreshIfUpdated,
+		startPwa,
+		watchInstallPrompt
+	} from '#lib/pwa.svelte.ts';
 	import type { LayoutProps } from './$types';
 
 	let { data, children }: LayoutProps = $props();
@@ -18,8 +23,12 @@
 		// The service worker exists only in production builds.
 		if (!dev) startPwa().catch((e) => console.error('service worker:', e));
 	});
-	// Moving between pages loads none, so the browser's own update check never runs.
-	afterNavigate(checkForUpdate);
+	afterNavigate(() => {
+		// Moving between pages loads none, so the browser's own update check never runs.
+		checkForUpdate();
+		// A page opened from the device's copy of its data whose newer data arrived meanwhile (#7).
+		refreshIfUpdated();
+	});
 </script>
 
 {#if navigating.to}

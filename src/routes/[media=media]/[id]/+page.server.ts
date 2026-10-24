@@ -17,23 +17,35 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const id = Number(params.id);
 	if (!isMedia(params.media) || !Number.isSafeInteger(id) || id < 1) error(404, 'No such title');
 	try {
-		const { details, stale } = await titleDetails(locals.db, params.media, id);
 		const userId = locals.user!.id;
-		const country = await watchCountry(locals.db, userId);
-		const mine = new Set((await myServices(locals.db, userId)).map((p) => p.id));
+		// Each query waits about as long as D1 takes to answer, so they run at the same time: one
+		// after another they kept a title waiting 300-440 ms (#7).
+		const [{ details, stale }, country, services, entry, links, watchedEps] = await Promise.all([
+			titleDetails(locals.db, params.media, id),
+			watchCountry(locals.db, userId),
+			myServices(locals.db, userId),
+			entryFor(locals.db, userId, params.media, id),
+			ownLinks(locals.db, userId),
+			params.media === 'tv' ? watchedEpisodes(locals.db, userId, id) : Promise.resolve([])
+		]);
+		const [otherRatings, imdb] = await Promise.all([
+			ratingsFromOmdb(details.imdbId),
+			details.imdbId
+				? imdbRatingsFor(locals.db, [details.imdbId]).then((r) => r.get(details.imdbId!) ?? null)
+				: null
+		]);
+		const mine = new Set(services.map((p) => p.id));
 		return {
 			details,
 			country,
 			where: country ? whereToWatch(details.providers, country, mine) : null,
 			hasServices: mine.size > 0,
-			otherRatings: await ratingsFromOmdb(details.imdbId),
-			imdb: details.imdbId
-				? ((await imdbRatingsFor(locals.db, [details.imdbId])).get(details.imdbId) ?? null)
-				: null,
-			watchedEpisodes: params.media === 'tv' ? await watchedEpisodes(locals.db, userId, id) : [],
+			otherRatings,
+			imdb,
+			watchedEpisodes: watchedEps,
 			stale,
-			entry: await entryFor(locals.db, userId, params.media, id),
-			links: await ownLinks(locals.db, userId),
+			entry,
+			links,
 			demo: tmdbDemo()
 		};
 	} catch (e) {

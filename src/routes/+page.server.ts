@@ -15,13 +15,21 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	depends('app:watch-news');
 	const raw = url.searchParams.get('tab');
 	const userId = locals.user!.id;
-	const counts = await watchCounts(locals.db, userId);
+	// One query after another kept the list waiting 300-530 ms (#7); only the rows need the tab, and
+	// the tab needs the counts only when the address names none.
+	const asked = isWatchStatus(raw) ? raw : null;
+	const [counts, services, country, news, emailNews, askedRows] = await Promise.all([
+		watchCounts(locals.db, userId),
+		myServices(locals.db, userId),
+		watchCountry(locals.db, userId),
+		unseenNews(locals.db, userId),
+		emailsNews(locals.db, userId),
+		asked ? listWatch(locals.db, userId, asked) : null
+	]);
 	// Without a tab, open on what the viewer is watching, if anything.
-	const tab: WatchStatus = isWatchStatus(raw) ? raw : counts.watching ? 'watching' : 'want';
-	const services = await myServices(locals.db, userId);
-	const country = await watchCountry(locals.db, userId);
+	const tab: WatchStatus = asked ?? (counts.watching ? 'watching' : 'want');
 	const mine = new Set(services.map((p) => p.id));
-	const rows = await listWatch(locals.db, userId, tab);
+	const rows = askedRows ?? (await listWatch(locals.db, userId, tab));
 	const ratings = await imdbRatingsFor(
 		locals.db,
 		rows.map((r) => r.imdbId)
@@ -37,8 +45,8 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 		counts,
 		titles,
 		services,
-		news: await unseenNews(locals.db, userId),
-		emailNews: await emailsNews(locals.db, userId),
+		news,
+		emailNews,
 		demo: tmdbDemo()
 	};
 };
