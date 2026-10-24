@@ -11,6 +11,10 @@ test('watchlist: search, add, change status and rating, remove; private to the a
 	await expect(page.getByText('Demo titles: TMDB is not set up here')).toBeVisible();
 	await expect(page.getByText('This product uses the TMDB API')).toBeVisible();
 
+	// The demo film's IMDb rating, as the nightly IMDb load would have it; CI starts with none.
+	d1(
+		"INSERT INTO imdb_ratings (imdb_id, rating, votes) VALUES ('tt9000001', 7.8, 12345) ON CONFLICT(imdb_id) DO UPDATE SET rating = 7.8, votes = 12345"
+	);
 	await page.getByLabel('Search films and series').fill('lighthouse');
 	await page.getByLabel('Search films and series').press('Enter');
 	await expect(page).toHaveURL(/\/search\?q=lighthouse$/);
