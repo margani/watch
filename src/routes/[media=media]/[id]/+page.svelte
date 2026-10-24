@@ -3,6 +3,7 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Episodes from '#lib/components/Episodes.svelte';
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
+	import MoreTitles from '#lib/components/MoreTitles.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
@@ -339,5 +340,7 @@
 		</div>
 	</div>
 </article>
+
+<MoreTitles media={d.media} tmdbId={d.tmdbId} />
 
 <DemoNote demo={data.demo} />
