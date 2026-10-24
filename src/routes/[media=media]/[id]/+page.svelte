@@ -107,7 +107,7 @@
 				{#each WATCH_STATUSES as s (s)}
 					<button
 						type="button"
-						class="btn-ghost h-12 px-2 text-sm leading-tight whitespace-normal aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink sm:text-base"
+						class="btn-ghost h-12 rounded-2xl px-2 text-sm leading-tight whitespace-normal aria-pressed:border-accent aria-pressed:bg-accent aria-pressed:text-accent-ink sm:text-base"
 						aria-pressed={status === s}
 						disabled={busy}
 						onclick={() => send({ status: s })}>{STATUS_LABEL[s]}</button
