@@ -1,5 +1,4 @@
 <script lang="ts">
-	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import TitleRow from '#lib/components/TitleRow.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
@@ -84,5 +83,4 @@
 	</p>
 {/if}
 
-{#if data.services.length}<JustWatchCredit />{/if}
 <DemoNote demo={data.demo} />

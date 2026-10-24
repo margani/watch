@@ -8,7 +8,8 @@ import type {
 	PersonKind,
 	Provider,
 	SeasonEpisode,
-	TitleDetails
+	TitleDetails,
+	TitleHit
 } from '#lib/watch.ts';
 
 // Real service names, no logos: the demo never loads TMDB's images.
@@ -213,6 +214,41 @@ export function demoCollection(id: number): CollectionPart[] {
 		overview: t.overview,
 		releaseDate: dates[t.tmdbId] ?? null
 	}));
+}
+
+// The Quiet Orchard plays the spin-off of Harbour Lights, like Young Sheldon for Big Bang (#31).
+const DEMO_SPIN_OFFS: [number, number][] = [[900101, 900102]];
+
+const demoHit = (t: TitleDetails): TitleHit => ({
+	media: t.media,
+	tmdbId: t.tmdbId,
+	title: t.title,
+	year: t.year,
+	posterPath: t.posterPath,
+	overview: t.overview,
+	votes: t.ratingCount ?? 0
+});
+
+/** A demo title's related titles (its collection, spin-offs) and similar ones (shared genres). */
+export function demoMore(media: Media, tmdbId: number) {
+	const t = demoDetails(media, tmdbId);
+	if (!t) return { related: [], similar: [] };
+	const spun = new Set(
+		media === 'tv'
+			? DEMO_SPIN_OFFS.flatMap(([a, b]) => (a === tmdbId ? [b] : b === tmdbId ? [a] : []))
+			: []
+	);
+	const related = DEMO_TITLES.filter(
+		(o) =>
+			o !== t &&
+			((t.collection && o.collection?.id === t.collection.id) ||
+				(o.media === 'tv' && spun.has(o.tmdbId)))
+	);
+	const shared = (o: TitleDetails) => o.genres.filter((g) => t.genres.includes(g)).length;
+	const similar = DEMO_TITLES.filter((o) => o !== t && !related.includes(o) && shared(o) > 0).sort(
+		(a, b) => shared(b) - shared(a)
+	);
+	return { related: related.map(demoHit), similar: similar.map(demoHit) };
 }
 
 /** Demo titles streaming on any of these services in the country, best rated or most popular. */

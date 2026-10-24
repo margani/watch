@@ -41,7 +41,7 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 			['watch import', '/import'],
 			['watch for you', '/for-you'],
 			['film', '/movie/900001'],
-			['series', '/tv/900101'],
+			['series', '/tv/900101', 'ul[aria-label="Related"]'],
 			['actor', '/person/910001'],
 			['composer', '/person/910020'],
 			['account', '/account'],
@@ -53,6 +53,12 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 			if (ready) await page.locator(ready).first().waitFor();
 			problems.push(...(await audit(page, label)));
 		}
+		// The search box's suggestions, open (#28).
+		await page.goto('/');
+		await page.getByRole('combobox', { name: 'Search films and series' }).fill('light');
+		await page.getByRole('option', { name: /Harbour Lights/ }).waitFor();
+		await page.getByRole('combobox', { name: 'Search films and series' }).press('ArrowDown');
+		problems.push(...(await audit(page, 'suggestions')));
 		expect(problems).toEqual([]);
 	});
 }

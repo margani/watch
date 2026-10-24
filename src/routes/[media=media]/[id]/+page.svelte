@@ -3,6 +3,7 @@
 	import ExternalLink from '@lucide/svelte/icons/external-link';
 	import Episodes from '#lib/components/Episodes.svelte';
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
+	import MoreTitles from '#lib/components/MoreTitles.svelte';
 	import Poster from '#lib/components/Poster.svelte';
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
@@ -217,15 +218,17 @@
 						</div>
 					{/if}
 				{/each}
-				{#if data.where.link}
-					<a
-						href={data.where.link}
-						class="mt-1 inline-flex items-center gap-1 text-ink-2 hover:text-ink"
-						rel="noopener noreferrer"
-						>Links to each service <ExternalLink class="size-3.5" aria-hidden="true" /></a
-					>
-				{/if}
-				<JustWatchCredit />
+				<p class="mt-1 flex flex-wrap items-center gap-x-3">
+					{#if data.where.link}
+						<a
+							href={data.where.link}
+							class="inline-flex items-center gap-1 text-ink-2 hover:text-ink"
+							rel="noopener noreferrer"
+							>Links to each service <ExternalLink class="size-3.5" aria-hidden="true" /></a
+						>
+					{/if}
+					<JustWatchCredit />
+				</p>
 			{/if}
 			{#if links.length}
 				<ul class="mt-2 flex flex-wrap gap-x-4 gap-y-1" aria-label="Your links">
@@ -339,5 +342,7 @@
 		</div>
 	</div>
 </article>
+
+<MoreTitles media={d.media} tmdbId={d.tmdbId} />
 
 <DemoNote demo={data.demo} />

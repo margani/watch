@@ -4,9 +4,12 @@
 // Without TMDB_TOKEN, deployments with TMDB_DEMO=1 (local, sandbox, tests) get the fictional titles in
 // watch-demo.ts; anywhere else the pages say TMDB is not set up, so production never shows made-up titles.
 import { env } from 'cloudflare:workers';
+import { cached } from './cache.ts';
+import { wikidataMatches } from './wikidata.ts';
 import {
 	detailsFromTmdb,
 	hitFromTmdb,
+	rankHits,
 	partsFromTmdb,
 	personFromTmdb,
 	type PersonDetails,
@@ -74,9 +77,27 @@ async function get(path: string, params: Record<string, string> = {}) {
 export async function searchTitles(query: string): Promise<TitleHit[]> {
 	if (tmdbDemo()) return demoSearch(query);
 	if (!tmdbLive()) throw notConfigured();
-	const r = await get('/search/multi', { query, include_adult: 'false', page: '1' });
-	const rows = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
-	return rows.map((row) => hitFromTmdb(row)).filter((h): h is TitleHit => !!h);
+	// Suggestions ask while the viewer types, and Enter then asks the same again (#28).
+	return cached(`tmdb/search/${query.toLowerCase()}`, 3600, async () => {
+		const [r, matched] = await Promise.all([
+			get('/search/multi', { query, include_adult: 'false', page: '1' }),
+			wikidataMatches(query)
+		]);
+		const rows = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
+		const hits = rows.map((row) => hitFromTmdb(row)).filter((h): h is TitleHit => !!h);
+		const known = await Promise.all(
+			matched.map(async (m) => {
+				const had = hits.find((h) => h.media === m.media && h.tmdbId === m.tmdbId);
+				if (had) return had;
+				return titleHit(m.media, m.tmdbId);
+			})
+		);
+		return rankHits(
+			query,
+			hits,
+			known.filter((h): h is TitleHit => !!h)
+		);
+	});
 }
 
 export async function fetchDetails(media: Media, tmdbId: number): Promise<TitleDetails> {
@@ -159,6 +180,36 @@ export async function discoverTitles(
 	});
 	const rows = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
 	return rows.map((row) => hitFromTmdb(row, media)).filter((h): h is TitleHit => !!h);
+}
+
+/**
+ * One title as a search hit, kept a week. Null for a title TMDB removed (a Wikidata entry can
+ * still point at it) or an adult one (Wikidata links parodies to what they parody, #31).
+ */
+export async function titleHit(media: Media, tmdbId: number): Promise<TitleHit | null> {
+	if (tmdbDemo() || !tmdbLive()) return null;
+	return cached(`tmdb-hit/${media}/${tmdbId}`, 7 * 24 * 3600, async () => {
+		const r = await get(`/${media}/${tmdbId}`).catch(() => null);
+		return r && r.adult !== true ? hitFromTmdb(r, media) : null;
+	});
+}
+
+/** Titles TMDB recommends after this one, or its similar ones when it has none (#31). */
+export async function similarTitles(media: Media, tmdbId: number): Promise<TitleHit[]> {
+	if (!tmdbLive()) throw notConfigured();
+	return cached(`tmdb-similar/${media}/${tmdbId}`, 24 * 3600, async () => {
+		const rows = async (kind: string) => {
+			const r = await get(`/${media}/${tmdbId}/${kind}`, { page: '1' });
+			const found = Array.isArray(r.results) ? (r.results as Record<string, unknown>[]) : [];
+			// Each row names its own kind when TMDB mixes films and series.
+			return found
+				.filter((row) => row.adult !== true)
+				.map((row) => hitFromTmdb({ media_type: media, ...row }))
+				.filter((h): h is TitleHit => !!h);
+		};
+		const recommended = await rows('recommendations');
+		return recommended.length ? recommended : rows('similar');
+	});
 }
 
 /** The films of a collection, oldest first. */
