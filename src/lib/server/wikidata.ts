@@ -58,3 +58,55 @@ export async function wikidataMatches(
 		return [];
 	}
 }
+
+const SPARQL = 'https://query.wikidata.org/sparql';
+// follows, followed by, based on, derivative work, has spin-off: either way round. Pornographic
+// parodies (Big Bang's) and fan films (Harry Potter's) are left out, besides TMDB's adult flag.
+const LINKS = 'wdt:P155|wdt:P156|wdt:P144|wdt:P4969|wdt:P2512';
+
+/**
+ * Sequels, prequels, spin-offs, the rest of its series and franchise (#31): what TMDB has no
+ * relation for (Young Sheldon for The Big Bang Theory). Empty when Wikidata is slow or down.
+ */
+export async function wikidataRelated(
+	media: Media,
+	tmdbId: number
+): Promise<{ media: Media; tmdbId: number }[]> {
+	const prop = media === 'movie' ? 'P4947' : 'P4983';
+	const query = `SELECT DISTINCT ?m ?t WHERE {
+  ?s wdt:${prop} "${tmdbId}" .
+  { ?s ${LINKS} ?o } UNION { ?o ${LINKS} ?s }
+  UNION { ?s wdt:P179 ?x . ?o wdt:P179 ?x }
+  UNION { ?s wdt:P8345 ?f . ?o wdt:P8345 ?f }
+  OPTIONAL { ?o wdt:P4947 ?m } OPTIONAL { ?o wdt:P4983 ?t }
+  FILTER(?o != ?s && (BOUND(?m) || BOUND(?t)))
+  FILTER NOT EXISTS { ?o wdt:P136/wdt:P279* wd:Q185529 }
+  FILTER NOT EXISTS { ?o wdt:P31 wd:Q2301591 }
+} LIMIT 80`;
+	try {
+		const url = new URL(SPARQL);
+		url.searchParams.set('query', query);
+		url.searchParams.set('format', 'json');
+		const res = await fetch(url, {
+			headers: { 'user-agent': UA, accept: 'application/sparql-results+json' },
+			signal: AbortSignal.timeout(5000)
+		});
+		if (!res.ok) return [];
+		const body = (await res.json()) as {
+			results?: { bindings?: Record<string, { value: string } | undefined>[] };
+		};
+		const out = new Map<string, { media: Media; tmdbId: number }>();
+		for (const b of body.results?.bindings ?? [])
+			for (const [key, kind] of [
+				['m', 'movie'],
+				['t', 'tv']
+			] as const) {
+				const id = Number(b[key]?.value);
+				if (Number.isSafeInteger(id) && id > 0)
+					out.set(`${kind}:${id}`, { media: kind, tmdbId: id });
+			}
+		return [...out.values()];
+	} catch {
+		return [];
+	}
+}

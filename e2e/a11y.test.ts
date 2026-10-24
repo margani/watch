@@ -41,7 +41,7 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 			['watch import', '/import'],
 			['watch for you', '/for-you'],
 			['film', '/movie/900001'],
-			['series', '/tv/900101'],
+			['series', '/tv/900101', 'ul[aria-label="Related"]'],
 			['actor', '/person/910001'],
 			['composer', '/person/910020'],
 			['account', '/account'],
