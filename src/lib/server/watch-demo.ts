@@ -4,6 +4,8 @@ import type {
 	Availability,
 	CollectionPart,
 	Media,
+	PersonDetails,
+	PersonKind,
 	Provider,
 	SeasonEpisode,
 	TitleDetails
@@ -60,14 +62,18 @@ export const DEMO_TITLES: TitleDetails[] = [
 		ratingCount: 1200,
 		status: 'Released',
 		makers: ['Ada Penrose'],
+		makerCredits: [{ id: 910010, name: 'Ada Penrose' }],
+		music: [{ id: 910020, name: 'Noor Calder' }],
+		// A made-up key: the e2e test checks the player's address and never loads YouTube.
+		trailer: { key: 'demoTrailer01', name: 'Official Trailer' },
 		providers: {
 			// Netflix both in the subscription and with ads, as TMDB lists some titles.
 			GB: offer({ stream: [netflix, prime], free: [netflix], rent: [google] }),
 			US: offer({ stream: [max] })
 		},
 		cast: [
-			{ name: 'Milo Hart', role: 'Ewan' },
-			{ name: 'Rosa Lind', role: 'Maren' }
+			{ name: 'Milo Hart', role: 'Ewan', id: 910001, profilePath: null },
+			{ name: 'Rosa Lind', role: 'Maren', id: 910002, profilePath: null }
 		]
 	},
 	{
@@ -83,7 +89,7 @@ export const DEMO_TITLES: TitleDetails[] = [
 		runtime: 94,
 		status: 'Released',
 		makers: ['Jonah Weir'],
-		cast: [{ name: 'Ivy Brand', role: 'Tess' }],
+		cast: [{ name: 'Ivy Brand', role: 'Tess', id: 910003, profilePath: null }],
 		collection: { id: 990001, name: 'Paper Comets Collection' },
 		providers: { GB: offer({ stream: [netflix] }) }
 	},
@@ -99,7 +105,7 @@ export const DEMO_TITLES: TitleDetails[] = [
 		runtime: 99,
 		status: 'Released',
 		makers: ['Jonah Weir'],
-		cast: [{ name: 'Ivy Brand', role: 'Tess' }],
+		cast: [{ name: 'Ivy Brand', role: 'Tess', id: 910003, profilePath: null }],
 		collection: { id: 990001, name: 'Paper Comets Collection' },
 		providers: { GB: offer({ stream: [netflix] }) }
 	},
@@ -114,6 +120,7 @@ export const DEMO_TITLES: TitleDetails[] = [
 		runtime: 101,
 		status: 'Released',
 		makers: ['Ada Penrose'],
+		makerCredits: [{ id: 910010, name: 'Ada Penrose' }],
 		cast: []
 	},
 	{
@@ -131,7 +138,10 @@ export const DEMO_TITLES: TitleDetails[] = [
 		status: 'Returning Series',
 		makers: ['Nell Arden'],
 		providers: { GB: offer({ stream: [disney] }), US: offer({ stream: [disney, prime] }) },
-		cast: [{ name: 'Tom Fairley', role: 'Harbour master' }],
+		cast: [
+			{ name: 'Tom Fairley', role: 'Harbour master', id: 910004, profilePath: null },
+			{ name: 'Milo Hart', role: 'Finn', id: 910001, profilePath: null }
+		],
 		seasons: 3,
 		episodes: 26,
 		lastEpisode: { season: 3, number: 6, name: 'Low Water', airDate: '2026-10-12' },
@@ -224,6 +234,56 @@ export function demoDiscover(
 			? (b.rating ?? 0) - (a.rating ?? 0)
 			: (b.ratingCount ?? 0) - (a.ratingCount ?? 0)
 	);
+}
+
+const DEMO_PEOPLE: Omit<PersonDetails, 'credits'>[] = [
+	{
+		id: 910001,
+		name: 'Milo Hart',
+		knownFor: 'acting',
+		biography: 'Milo Hart is a made-up actor in the demo catalogue.'
+	},
+	{ id: 910002, name: 'Rosa Lind', knownFor: 'acting', biography: '' },
+	{ id: 910003, name: 'Ivy Brand', knownFor: 'acting', biography: '' },
+	{ id: 910004, name: 'Tom Fairley', knownFor: 'acting', biography: '' },
+	{ id: 910010, name: 'Ada Penrose', knownFor: 'directing', biography: '' },
+	{ id: 910020, name: 'Noor Calder', knownFor: 'music', biography: '' }
+].map((p) => ({
+	...p,
+	knownFor: p.knownFor as PersonKind,
+	profilePath: null,
+	birthday: null,
+	deathday: null,
+	placeOfBirth: null
+}));
+
+/** A demo person, their credits from the demo titles. */
+export function demoPerson(id: number): PersonDetails | null {
+	const p = DEMO_PEOPLE.find((x) => x.id === id);
+	if (!p) return null;
+	const credits = DEMO_TITLES.flatMap((t) => {
+		const hit = {
+			media: t.media,
+			tmdbId: t.tmdbId,
+			title: t.title,
+			year: t.year,
+			posterPath: t.posterPath,
+			overview: t.overview,
+			votes: t.ratingCount ?? 0
+		};
+		return [
+			...t.cast
+				.filter((c) => c.id === id)
+				.map((c) => ({ ...hit, kind: 'acting' as const, role: c.role })),
+			...(t.makerCredits ?? [])
+				.filter((c) => c.id === id)
+				.map(() => ({ ...hit, kind: 'directing' as const, role: null })),
+			...(t.music ?? [])
+				.filter((c) => c.id === id)
+				.map(() => ({ ...hit, kind: 'music' as const, role: null }))
+		];
+	});
+	return { ...p, credits };
 }
 
 export function demoImdbId(media: Media, tmdbId: number) {

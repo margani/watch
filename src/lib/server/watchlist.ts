@@ -158,7 +158,10 @@ export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 	if (usable) {
 		// A day old: shown as it is while TMDB is asked after the answer, so the page doesn't wait
 		// for TMDB (#7). The next visit gets the new copy, and its news.
-		if (Date.now() - stored.fetchedAt.getTime() >= FRESH_MS)
+		// Stored before cast photos, people's pages and trailers (#16-#20): the same, so they show
+		// from the next visit.
+		const older = !('music' in stored.details);
+		if (older || Date.now() - stored.fetchedAt.getTime() >= FRESH_MS)
 			waitUntil(
 				fetchDetails(media, tmdbId)
 					.then((details) => saveTitle(db, details, stored))
@@ -618,4 +621,14 @@ export async function imdbRatingsFor(db: Db, ids: (string | null | undefined)[])
 		for (const r of rows) out.set(r.imdbId, { rating: r.rating, votes: r.votes });
 	}
 	return out;
+}
+
+/** The viewer's status for every title on their list, by `media:tmdbId`: marks on a person's page. */
+export async function statusesOnList(db: Db, userId: string) {
+	const rows = await db
+		.select({ media: watchTitles.media, tmdbId: watchTitles.tmdbId, status: watchlist.status })
+		.from(watchlist)
+		.innerJoin(watchTitles, eq(watchTitles.id, watchlist.titleId))
+		.where(eq(watchlist.userId, userId));
+	return new Map(rows.map((r) => [`${r.media}:${r.tmdbId}`, r.status as WatchStatus]));
 }

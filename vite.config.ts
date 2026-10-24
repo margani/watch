@@ -53,6 +53,8 @@ export default defineConfig({
 					],
 					'font-src': ['self', 'data:'],
 					'connect-src': ['self'],
+					// Trailers, only once play is tapped (#19).
+					'frame-src': ['https://www.youtube-nocookie.com'],
 					'form-action': ['self', 'https://accounts.google.com'],
 					'frame-ancestors': ['none'],
 					'base-uri': ['self'],
