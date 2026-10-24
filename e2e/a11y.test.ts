@@ -20,13 +20,16 @@ async function audit(page: import('@playwright/test').Page, label: string) {
 	return blocking.map((v) => `${label}: ${v.id} ×${v.nodes.length}`);
 }
 
-for (const scheme of ['light', 'dark'] as const) {
-	test(`pages have no serious accessibility problems (${scheme})`, async ({ page }) => {
+// Every theme keeps its contrast (#1): each one is audited on every page.
+for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
+	test(`pages have no serious accessibility problems (${theme})`, async ({ page }) => {
 		// Every page analysed by axe takes longer than the default 30 s.
 		test.setTimeout(180_000);
-		await page.emulateMedia({ colorScheme: scheme });
 		const problems: string[] = [];
 		await page.goto('/signin');
+		await page.evaluate((t) => localStorage.setItem('theme', t), theme);
+		await page.goto('/signin');
+		await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 		problems.push(...(await audit(page, 'signin')));
 
 		await signUp(page);

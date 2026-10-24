@@ -8,7 +8,7 @@
 	import LogOut from '@lucide/svelte/icons/log-out';
 	import Shield from '@lucide/svelte/icons/shield';
 	import UserRound from '@lucide/svelte/icons/user-round';
-	import ThemeToggle from './ThemeToggle.svelte';
+	import ThemePicker from './ThemePicker.svelte';
 
 	interface Props {
 		user: { name: string; email: string; image?: string | null } | null;
@@ -84,7 +84,7 @@
 			</nav>
 		{/if}
 		<div class="ml-auto flex shrink-0 items-center gap-1">
-			<ThemeToggle />
+			<ThemePicker />
 			{#if user}
 				<details class="relative" bind:this={account} bind:open={accountOpen}>
 					<summary
@@ -145,7 +145,7 @@
 			{#each sections as s (s.href)}
 				<a
 					href={s.href}
-					class="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[11px] leading-none text-ink-2 aria-[current=page]:font-semibold aria-[current=page]:text-accent"
+					class="-mt-px flex min-w-0 flex-1 flex-col items-center justify-center gap-1 border-t-[3px] border-transparent text-xs leading-none text-ink-2 aria-[current=page]:border-accent aria-[current=page]:font-bold aria-[current=page]:text-accent"
 					aria-current={s.current ? 'page' : undefined}
 					aria-label={s.href === '/' && news ? `My list, ${news} new` : undefined}
 					><span class="relative inline-flex"

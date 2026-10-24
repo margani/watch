@@ -14,21 +14,39 @@ const colours = (page: Page) =>
 		return { meta, bg: getComputedStyle(document.documentElement).backgroundColor };
 	});
 
-const LIGHT = 'rgb(247, 245, 241)';
-const DARK = 'rgb(19, 18, 16)';
+const PAPER = 'rgb(245, 241, 232)';
+const INK = 'rgb(22, 19, 15)';
+const SAGE = 'rgb(238, 242, 234)';
 
-// The installed desktop app paints the strip behind its window buttons with theme-color; it
-// stayed dark on a dark system while the app was light.
-test("theme-color follows the app's theme, not the system's", async ({ page }) => {
+async function pick(page: Page, name: string) {
+	await page.getByLabel(/^Theme:/).click();
+	await page.getByRole('menuitemradio', { name }).click();
+}
+
+// The installed desktop app paints the strip behind its window buttons with theme-color, so it
+// follows the chosen theme; System follows the device.
+test('themes: System follows the device, a chosen theme stays across pages', async ({ page }) => {
 	await page.emulateMedia({ colorScheme: 'dark' });
 	await signUp(page);
-	await page.evaluate(() => localStorage.setItem('theme', 'light'));
-	await page.goto('/');
-	expect(await colours(page)).toEqual({ meta: LIGHT, bg: LIGHT });
+	expect(await colours(page)).toEqual({ meta: INK, bg: INK });
+	await expect(page.getByLabel(/^Theme:/)).toHaveAccessibleName('Theme: System');
 
-	await page.getByRole('button', { name: 'Switch to dark theme' }).click();
-	expect(await colours(page)).toEqual({ meta: DARK, bg: DARK });
-
+	await pick(page, 'Sage');
+	expect(await colours(page)).toEqual({ meta: SAGE, bg: SAGE });
+	await expect(page.locator('html')).not.toHaveClass(/dark/);
 	await page.goto('/for-you');
-	expect(await colours(page)).toEqual({ meta: DARK, bg: DARK });
+	expect(await colours(page)).toEqual({ meta: SAGE, bg: SAGE });
+
+	await pick(page, 'Paper');
+	expect(await colours(page)).toEqual({ meta: PAPER, bg: PAPER });
+	await pick(page, 'System');
+	expect(await colours(page)).toEqual({ meta: INK, bg: INK });
+	await expect(page.locator('html')).toHaveClass(/dark/);
+});
+
+test('the first version’s dark setting becomes Ink', async ({ page }) => {
+	await signUp(page);
+	await page.evaluate(() => localStorage.setItem('theme', 'dark'));
+	await page.goto('/');
+	expect(await colours(page)).toEqual({ meta: INK, bg: INK });
 });

@@ -1,47 +1,86 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
-@import '@fontsource-variable/literata';
+@import '@fontsource-variable/nunito';
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Colour tokens: light by default, redefined under .dark. Components use only these. */
-:root {
-	--bg: #f7f5f1;
-	--surface: #ffffff;
-	--surface-2: #efebe4;
-	--ink: #1d1b18;
-	--ink-2: #57524b;
-	--muted: #6b655c; /* 4.85:1 or better on every light background */
-	--line: #e3ded5;
-	--accent: #0d7a6f;
-	--accent-hover: #0a6359;
+/*
+ * Colour tokens per theme (src/lib/themes.ts): app.html puts data-theme on <html> before the first
+ * paint. Components use only these. Body text and --muted keep 4.5:1 on every background of their
+ * theme; the a11y test audits each theme.
+ */
+:root,
+[data-theme='paper'] {
+	--bg: #f5f1e8;
+	--surface: #fffdf8;
+	--surface-2: #ece5d6;
+	--ink: #1f1a14;
+	--ink-2: #5b5245;
+	--muted: #675d4d;
+	--line: #ded5c4;
+	--accent: #a63d16;
+	--accent-hover: #8a3212;
 	--accent-ink: #ffffff;
-	--accent-soft: #dcefeb;
-	--heart: #d6304a;
-	--star: #c58a12;
-	--focus: #0d7a6f;
+	--accent-soft: #f3ded2;
+	--heart: #b8283f;
+	--star: #8a5f00;
+	--focus: #a63d16;
 }
 
-.dark {
-	--bg: #131210;
-	--surface: #1c1a17;
-	--surface-2: #26231f;
-	--ink: #eeebe5;
-	--ink-2: #c3bdb3;
-	--muted: #958e83;
-	--line: #34302a;
-	--accent: #3cbfae;
-	--accent-hover: #5fd0c1;
-	--accent-ink: #0b1f1c;
-	--accent-soft: #173430;
-	--heart: #ff6b81;
+[data-theme='ink'] {
+	--bg: #16130f;
+	--surface: #201c17;
+	--surface-2: #2a251f;
+	--ink: #f1ebe0;
+	--ink-2: #bdb3a3;
+	--muted: #a59b8a;
+	--line: #3a3329;
+	--accent: #f08a5d;
+	--accent-hover: #f5a27d;
+	--accent-ink: #2a1206;
+	--accent-soft: #3b2418;
+	--heart: #ff7a8c;
 	--star: #f0b43c;
-	--focus: #5fd0c1;
+	--focus: #f5a27d;
+}
+
+[data-theme='sage'] {
+	--bg: #eef2ea;
+	--surface: #fbfcf9;
+	--surface-2: #dfe7d9;
+	--ink: #18231a;
+	--ink-2: #4a5a4d;
+	--muted: #536455;
+	--line: #d2ddcc;
+	--accent: #3a6340;
+	--accent-hover: #2e5034;
+	--accent-ink: #ffffff;
+	--accent-soft: #d8e7d6;
+	--heart: #b8283f;
+	--star: #7d5a00;
+	--focus: #3a6340;
+}
+
+[data-theme='plum'] {
+	--bg: #f4eff6;
+	--surface: #fffcff;
+	--surface-2: #e8ddec;
+	--ink: #22142a;
+	--ink-2: #5d4868;
+	--muted: #665371;
+	--line: #ddcfe3;
+	--accent: #74348a;
+	--accent-hover: #5e2a70;
+	--accent-ink: #ffffff;
+	--accent-soft: #ebdaf1;
+	--heart: #b8283f;
+	--star: #7d5a00;
+	--focus: #74348a;
 }
 
 @theme inline {
-	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-	--font-serif: 'Literata Variable', ui-serif, Georgia, serif;
+	/* One calm, rounded face for headings and text (the owner's choice); font-serif marks headings. */
+	--font-sans: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-serif: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
 	--color-bg: var(--bg);
 	--color-surface: var(--surface);
 	--color-surface-2: var(--surface-2);
