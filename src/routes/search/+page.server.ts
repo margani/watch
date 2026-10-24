@@ -1,6 +1,6 @@
 import { imdbRater } from '#lib/server/for-you.ts';
 import { searchTitles, tmdbDemo, TmdbError } from '#lib/server/tmdb.ts';
-import type { ImdbRating } from '#lib/server/watchlist.ts';
+import { warmTitles, type ImdbRating } from '#lib/server/watchlist.ts';
 import type { TitleHit } from '#lib/watch.ts';
 import type { PageServerLoad } from './$types';
 
@@ -13,6 +13,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		const hits = await searchTitles(q);
 		// Choosing between results shouldn't mean opening each one (#10).
 		const rate = await imdbRater(locals.db, hits);
+		warmTitles(locals.db, hits);
 		return { q, hits: rate(hits), failed: null, demo: tmdbDemo() };
 	} catch (e) {
 		if (!(e instanceof TmdbError)) throw e;

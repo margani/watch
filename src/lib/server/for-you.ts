@@ -9,6 +9,7 @@ import {
 	imdbRatingsFor,
 	myServices,
 	unseenNews,
+	warmTitles,
 	watchCountry,
 	type ImdbRating
 } from './watchlist.ts';
@@ -72,13 +73,9 @@ export async function forYou(db: Db, userId: string) {
 		row('tv', 'rated'),
 		row('movie', 'rated')
 	]);
-	const rate = await imdbRater(db, [
-		...newer.values(),
-		...popularTv,
-		...popularFilms,
-		...ratedTv,
-		...ratedFilms
-	]);
+	const shown = [...newer.values(), ...popularTv, ...popularFilms, ...ratedTv, ...ratedFilms];
+	const rate = await imdbRater(db, shown);
+	warmTitles(db, shown);
 	return {
 		country,
 		services,

@@ -13,6 +13,7 @@ import {
 	type Provider,
 	type SeasonEpisode,
 	type TitleDetails,
+	type TitleHit,
 	type WatchStatus
 } from '#lib/watch.ts';
 import type { Db } from './db';
@@ -97,6 +98,53 @@ async function saveTitle(db: Db, d: TitleDetails, previous?: StoredTitle | null)
  * A title's details: stored ones while fresh, else TMDB's (and stored again when the title is
  * already kept). If TMDB fails, stale stored details are better than none. `stale` says so.
  */
+const detailsKey = (media: Media, tmdbId: number) => `tmdb/${media}/${tmdbId}`;
+const DETAILS_CACHE_S = 6 * 3600;
+/** At most this many shown titles are fetched ahead, a few at a time. */
+const WARM_MAX = 60;
+const WARM_AT_ONCE = 4;
+
+/**
+ * While For you or search results are on screen, asks TMDB in the background for the shown titles
+ * that are neither stored nor already in the Workers cache, so the tap finds their details ready.
+ * A first visit used to wait about 300 ms for TMDB (#13). Returns that work, for tests.
+ */
+export function warmTitles(db: Db, hits: TitleHit[]): Promise<void> {
+	if (tmdbDemo() || !hits.length) return Promise.resolve();
+	const shown = [...new Map(hits.map((h) => [`${h.media}:${h.tmdbId}`, h])).values()].slice(
+		0,
+		WARM_MAX
+	);
+	const work = (async () => {
+		const stored = new Set(
+			(
+				await db
+					.select({ media: watchTitles.media, tmdbId: watchTitles.tmdbId })
+					.from(watchTitles)
+					.where(
+						inArray(
+							watchTitles.tmdbId,
+							shown.map((h) => h.tmdbId)
+						)
+					)
+			).map((r) => `${r.media}:${r.tmdbId}`)
+		);
+		const todo = shown.filter((h) => !stored.has(`${h.media}:${h.tmdbId}`));
+		for (let i = 0; i < todo.length; i += WARM_AT_ONCE)
+			await Promise.all(
+				todo
+					.slice(i, i + WARM_AT_ONCE)
+					.map((h) =>
+						cached(detailsKey(h.media, h.tmdbId), DETAILS_CACHE_S, () =>
+							fetchDetails(h.media, h.tmdbId)
+						).catch(() => null)
+					)
+			);
+	})().catch(() => {});
+	waitUntil(work);
+	return work;
+}
+
 export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 	const stored = await storedTitle(db, media, tmdbId);
 	// Details stored before providers were kept have no providers: fetch them again rather than wait a day.
@@ -124,7 +172,9 @@ export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 		const details =
 			stored || tmdbDemo()
 				? await fetchDetails(media, tmdbId)
-				: await cached(`tmdb/${media}/${tmdbId}`, 6 * 3600, () => fetchDetails(media, tmdbId));
+				: await cached(detailsKey(media, tmdbId), DETAILS_CACHE_S, () =>
+						fetchDetails(media, tmdbId)
+					);
 		if (stored) await saveTitle(db, details, stored);
 		return { details, stale: false };
 	} catch (e) {
