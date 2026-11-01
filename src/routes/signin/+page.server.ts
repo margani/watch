@@ -28,6 +28,12 @@ export const actions: Actions = {
 			await locals.auth.api.signInEmail({ body: { email, password } });
 		} catch (e) {
 			if (e instanceof APIError) {
+				if (e.body?.code === 'EMAIL_NOT_VERIFIED') {
+					return fail(403, {
+						email,
+						message: 'Confirm your email first: we just sent you a new link.'
+					});
+				}
 				return fail(400, { email, message: 'That email and password do not match.' });
 			}
 			throw e;

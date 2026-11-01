@@ -11,7 +11,12 @@
 <svelte:head><title>Create account · Watch</title></svelte:head>
 
 <AuthShell title="Create your account" subtitle="Sign-up is invite-only.">
-	{#if form?.message}
+	{#if form && 'sent' in form}
+		<p class="rounded-xl bg-accent-soft px-3 py-2 text-sm" role="status">
+			If {form.email} may sign up here, we sent it a link to confirm the address. Open it to finish creating
+			your account.
+		</p>
+	{:else if form?.message}
 		<p class="rounded-xl bg-heart/10 px-3 py-2 text-sm text-heart" role="alert">{form.message}</p>
 	{/if}
 	<form
