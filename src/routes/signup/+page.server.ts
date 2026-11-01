@@ -23,8 +23,12 @@ export const actions: Actions = {
 			});
 		}
 
+		let token: string | null;
 		try {
-			await locals.auth.api.signUpEmail({ body: { name, email, password } });
+			({ token } = await locals.auth.api.signUpEmail({
+				// After the link: signed in, /signin forwards home; a stale link shows there as an error.
+				body: { name, email, password, callbackURL: '/signin' }
+			}));
 		} catch (e) {
 			if (e instanceof APIError) {
 				return fail(e.statusCode === 403 ? 403 : 400, {
@@ -35,6 +39,10 @@ export const actions: Actions = {
 			}
 			throw e;
 		}
+		// Where the site sends email, a new account waits for its owner to open the link (#35).
+		// better-auth answers the same way when the address may not sign up, so this cannot tell
+		// someone which addresses are invited.
+		if (!token) return { sent: true, email };
 		redirect(303, '/');
 	}
 };

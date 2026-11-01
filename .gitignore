@@ -18,3 +18,7 @@ wrangler-dev.log
 # Python bytecode from the IMDb loader's tests
 __pycache__/
 wrangler.deploy.jsonc
+
+# Per-developer impeccable state
+.impeccable/config.local.json
+.impeccable/hook.cache.json

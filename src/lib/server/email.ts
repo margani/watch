@@ -19,6 +19,21 @@ export function resetEmail(name: string, url: string) {
 	};
 }
 
+export function verifyEmail(name: string, url: string) {
+	return {
+		subject: 'Confirm your Watch email',
+		text: [
+			`Hi ${name || 'there'},`,
+			'',
+			'To finish creating your Watch account, confirm this is your email address by opening:',
+			'',
+			url,
+			'',
+			'If you did not sign up for Watch, ignore this email; no account is opened without it.'
+		].join('\n')
+	};
+}
+
 /**
  * Sends through Cloudflare Email Sending. Failures that mean "not set up" become an
  * EmailSetupError naming what is missing, so whoever runs the site sees the fix instead of a 500.
