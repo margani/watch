@@ -1,6 +1,6 @@
 import type { BetterAuthOptions } from 'better-auth';
 import { APIError } from 'better-auth/api';
-import { resetEmail, sendMail, type Mailer } from './email';
+import { resetEmail, sendMail, verifyEmail, type Mailer } from './email';
 
 export interface AuthEnv {
 	ORIGIN: string;
@@ -30,6 +30,15 @@ export function hasGoogle(env: Partial<AuthEnv>): boolean {
 	return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
 }
 
+/**
+ * Whether this deployment can send mail, and so can ask a new account to confirm its address.
+ * Email is optional: without it sign-up works as before, and an invite list is matched on the
+ * address as typed.
+ */
+export function canSendEmail(env: Partial<AuthEnv>): boolean {
+	return Boolean(env.EMAIL && env.EMAIL_FROM);
+}
+
 export interface AuthHooks {
 	/** Emails invited outside ALLOWED_SIGNUP_EMAILS, such as v1 users. */
 	isInvited?: (email: string) => Promise<boolean>;
@@ -38,12 +47,16 @@ export interface AuthHooks {
 
 /** Options shared by the runtime and the schema-generation CLI; nothing here may import $app. */
 export function authOptions(env: AuthEnv, hooks: AuthHooks = {}) {
+	const verify = canSendEmail(env);
 	return {
 		baseURL: env.ORIGIN,
 		secret: env.BETTER_AUTH_SECRET,
 		emailAndPassword: {
 			enabled: true,
 			minPasswordLength: 8,
+			// The invite list names addresses, so only whoever reads that inbox may use one: without
+			// this, anyone who knew an invited address could sign up with it first (#35).
+			requireEmailVerification: verify,
 			resetPasswordTokenExpiresIn: 60 * 60,
 			revokeSessionsOnPasswordReset: true,
 			sendResetPassword: async ({ user, url }) => {
@@ -53,6 +66,19 @@ export function authOptions(env: AuthEnv, hooks: AuthHooks = {}) {
 				});
 			}
 		},
+		emailVerification: verify
+			? {
+					sendOnSignUp: true,
+					sendOnSignIn: true,
+					autoSignInAfterVerification: true,
+					sendVerificationEmail: async ({ user, url }) => {
+						await sendMail(env.EMAIL, env.EMAIL_FROM, {
+							to: user.email,
+							...verifyEmail(user.name, url)
+						});
+					}
+				}
+			: undefined,
 		socialProviders: hasGoogle(env)
 			? {
 					google: {
