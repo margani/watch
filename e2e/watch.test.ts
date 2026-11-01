@@ -1,4 +1,9 @@
+import { formatAirDate } from '../src/lib/watch.ts';
 import { d1, expect, hydrated, signUp, test } from './helpers';
+
+// The demo series' last and next episodes are two weeks either side of today (#38).
+const airDay = (days: number) =>
+	formatAirDate(new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10));
 
 // Films and series, against the demo catalogue: there is no TMDB_TOKEN in tests.
 test('watchlist: search, add, change status and rating, remove; private to the account', async ({
@@ -72,7 +77,7 @@ test('watchlist: search, add, change status and rating, remove; private to the a
 		'aria-current',
 		'page'
 	);
-	await expect(page.getByText('Next: S3 E7 · Spring Tide, 26 Oct 2026')).toBeVisible();
+	await expect(page.getByText(`Next: S3 E7 · Spring Tide, ${airDay(14)}`)).toBeVisible();
 
 	// Someone else sees none of it.
 	const other = await browser.newContext({ baseURL: new URL(page.url()).origin });
@@ -130,7 +135,7 @@ test('a new episode of a series being watched shows as news until it is seen', a
 	await page.goto('/');
 	const news = page.getByRole('region', { name: 'New' });
 	await expect(news).toContainText('Harbour Lights');
-	await expect(news).toContainText('New episode: S3 E6 · Low Water, 12 Oct 2026');
+	await expect(news).toContainText(`New episode: S3 E6 · Low Water, ${airDay(-14)}`);
 	await expect(page.getByRole('link', { name: /^My list, 1 new$/ })).toBeVisible();
 
 	await stranger.goto('/');
