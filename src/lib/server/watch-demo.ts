@@ -20,6 +20,12 @@ export const DEMO_PROVIDERS: Provider[] = [
 	{ id: 1899, name: 'Max', logoPath: null },
 	{ id: 3, name: 'Google Play Movies', logoPath: null }
 ];
+
+// Relative to today: fixed dates went stale and the next episode was out by the time a test ran.
+function daysFromToday(days: number) {
+	return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
+}
+
 const [netflix, disney, prime, max, google] = DEMO_PROVIDERS;
 export const DEMO_REGIONS = [
 	{ code: 'GB', name: 'United Kingdom' },
@@ -145,8 +151,8 @@ export const DEMO_TITLES: TitleDetails[] = [
 		],
 		seasons: 3,
 		episodes: 26,
-		lastEpisode: { season: 3, number: 6, name: 'Low Water', airDate: '2026-10-12' },
-		nextEpisode: { season: 3, number: 7, name: 'Spring Tide', airDate: '2026-10-26' }
+		lastEpisode: { season: 3, number: 6, name: 'Low Water', airDate: daysFromToday(-14) },
+		nextEpisode: { season: 3, number: 7, name: 'Spring Tide', airDate: daysFromToday(14) }
 	},
 	{
 		...base,
