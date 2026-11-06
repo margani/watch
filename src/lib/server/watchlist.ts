@@ -187,6 +187,17 @@ export async function titleDetails(db: Db, media: Media, tmdbId: number) {
 	}
 }
 
+/**
+ * The stored id of a title, storing its details first if nobody keeps it yet: a title put on one of
+ * the viewer's own lists (#46) needs a row even when it is not on their main list.
+ */
+export async function keepTitle(db: Db, media: Media, tmdbId: number): Promise<number> {
+	const stored = await storedTitle(db, media, tmdbId);
+	if (stored) return stored.id;
+	const { details } = await titleDetails(db, media, tmdbId);
+	return saveTitle(db, details, null);
+}
+
 export async function entryFor(db: Db, userId: string, media: Media, tmdbId: number) {
 	const [row] = await db
 		.select({ status: watchlist.status, rating: watchlist.rating, watchedAt: watchlist.watchedAt })

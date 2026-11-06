@@ -175,3 +175,43 @@ export const imdbRatings = sqliteTable('imdb_ratings', {
 	rating: real('rating').notNull(),
 	votes: integer('votes').notNull()
 });
+
+/**
+ * A viewer's own named lists (#46), such as a film series or a marathon, each in the order they
+ * want to watch it. Private like the rest: every query is scoped to the owner.
+ */
+export const watchLists = sqliteTable(
+	'watch_lists',
+	{
+		id: integer('id').primaryKey({ autoIncrement: true }),
+		userId: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		name: text('name').notNull(),
+		createdAt: integer('created_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(t) => [index('watch_lists_user_idx').on(t.userId, t.createdAt)]
+);
+
+/** The titles on one of a viewer's lists, smallest `position` first: the order to watch them. */
+export const watchListItems = sqliteTable(
+	'watch_list_items',
+	{
+		listId: integer('list_id')
+			.notNull()
+			.references(() => watchLists.id, { onDelete: 'cascade' }),
+		titleId: integer('title_id')
+			.notNull()
+			.references(() => watchTitles.id, { onDelete: 'cascade' }),
+		position: real('position').notNull().default(0),
+		addedAt: integer('added_at', { mode: 'timestamp' })
+			.notNull()
+			.default(sql`(unixepoch())`)
+	},
+	(t) => [
+		primaryKey({ columns: [t.listId, t.titleId] }),
+		index('watch_list_items_order_idx').on(t.listId, t.position)
+	]
+);

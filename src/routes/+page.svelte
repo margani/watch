@@ -3,18 +3,11 @@
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
 	import WatchSearch from '#lib/components/WatchSearch.svelte';
+	import ListTabs from '#lib/components/ListTabs.svelte';
 	import { invalidate, invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import { holdToDrag } from '#lib/hold-to-drag.ts';
-	import {
-		episodeLabel,
-		formatAirDate,
-		newsLabel,
-		progressLabel,
-		STATUS_LABEL,
-		titleHref,
-		WATCH_STATUSES
-	} from '#lib/watch.ts';
+	import { episodeLabel, formatAirDate, newsLabel, progressLabel, titleHref } from '#lib/watch.ts';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -171,25 +164,7 @@
 	</section>
 {/if}
 
-<!-- overflow-y-hidden: overflow-x alone makes the row scroll vertically too, and the tabs hang 1px
-	below it (-mb-px) so a scrollbar showed beside them. -->
-<nav
-	class="mb-6 flex gap-1 overflow-x-auto overflow-y-hidden border-b border-line"
-	aria-label="Watch lists"
->
-	{#each WATCH_STATUSES as s (s)}
-		<a
-			href="/?tab={s}"
-			aria-current={data.tab === s ? 'page' : undefined}
-			class="-mb-px flex h-12 shrink-0 items-center gap-1.5 border-b-[3px] px-3 text-base font-semibold whitespace-nowrap {data.tab ===
-			s
-				? 'border-accent text-ink'
-				: 'border-transparent text-ink-2 hover:text-ink'}"
-			>{STATUS_LABEL[s]}
-			<span class="font-normal text-muted">{data.counts[s]}</span></a
-		>
-	{/each}
-</nav>
+<ListTabs current={data.tab} counts={data.counts} lists={data.lists} />
 
 <p class="sr-only" id="order-help">
 	Hold a title, then drag it to put it in your own order. With a keyboard: Alt and the arrow keys.

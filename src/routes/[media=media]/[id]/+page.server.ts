@@ -11,6 +11,7 @@ import {
 	watchCountry,
 	watchedEpisodes
 } from '#lib/server/watchlist.ts';
+import { listsForTitle } from '#lib/server/lists.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, params }) => {
@@ -20,14 +21,16 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		const userId = locals.user!.id;
 		// Each query waits about as long as D1 takes to answer, so they run at the same time: one
 		// after another they kept a title waiting 300-440 ms (#7).
-		const [{ details, stale }, country, services, entry, links, watchedEps] = await Promise.all([
-			titleDetails(locals.db, params.media, id),
-			watchCountry(locals.db, userId),
-			myServices(locals.db, userId),
-			entryFor(locals.db, userId, params.media, id),
-			ownLinks(locals.db, userId),
-			params.media === 'tv' ? watchedEpisodes(locals.db, userId, id) : Promise.resolve([])
-		]);
+		const [{ details, stale }, country, services, entry, links, watchedEps, lists] =
+			await Promise.all([
+				titleDetails(locals.db, params.media, id),
+				watchCountry(locals.db, userId),
+				myServices(locals.db, userId),
+				entryFor(locals.db, userId, params.media, id),
+				ownLinks(locals.db, userId),
+				params.media === 'tv' ? watchedEpisodes(locals.db, userId, id) : Promise.resolve([]),
+				listsForTitle(locals.db, userId, params.media, id)
+			]);
 		const [otherRatings, imdb] = await Promise.all([
 			ratingsFromOmdb(details.imdbId),
 			details.imdbId
@@ -46,6 +49,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			stale,
 			entry,
 			links,
+			lists,
 			demo: tmdbDemo()
 		};
 	} catch (e) {
