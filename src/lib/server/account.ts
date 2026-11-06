@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import type { Db } from './db';
+import { exportLists } from './lists.ts';
 import {
 	user,
 	watchEpisodes,
@@ -56,12 +57,13 @@ export async function exportData(db: Db, userId: string) {
 		account: me ?? null,
 		list,
 		episodes,
+		lists: await exportLists(db, userId),
 		services,
 		settings: settings ?? null
 	};
 }
 
-/** Removes the account; its sessions, list, episodes, services, settings and news go with it. */
+/** Removes the account; its sessions, list, own lists, episodes, services, settings and news go with it. */
 export async function deleteAccount(db: Db, userId: string) {
 	await db.delete(user).where(eq(user.id, userId));
 }
