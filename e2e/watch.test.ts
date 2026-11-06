@@ -143,7 +143,9 @@ test('a new episode of a series being watched shows as news until it is seen', a
 	await other.close();
 
 	const seen = page.waitForResponse((r) => r.url().endsWith('/api/news/seen'));
-	await page.getByRole('button', { name: 'Mark all as seen' }).click();
+	// One item: its own Seen button, no "Mark all as seen" (#49).
+	await expect(news.getByRole('button', { name: 'Mark all as seen' })).toHaveCount(0);
+	await news.getByRole('button', { name: /^Seen: Harbour Lights/ }).click();
 	expect((await seen).status()).toBe(204);
 	await expect(news).toHaveCount(0);
 	await expect(page.getByRole('link', { name: /^My list, 1 new$/ })).toHaveCount(0);

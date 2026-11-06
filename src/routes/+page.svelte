@@ -4,6 +4,7 @@
 	import DemoNote from '#lib/components/DemoNote.svelte';
 	import WatchSearch from '#lib/components/WatchSearch.svelte';
 	import ListTabs from '#lib/components/ListTabs.svelte';
+	import Check from '@lucide/svelte/icons/check';
 	import { invalidate, invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 	import { holdToDrag } from '#lib/hold-to-drag.ts';
@@ -91,6 +92,25 @@
 		}
 	}
 
+	// One item at a time (#49): it goes at once, and comes back if the server didn't take it.
+	let seenNow = $state(new Set<number>());
+	let seenFailed = $state(false);
+	const news = $derived(data.news.filter((n) => !seenNow.has(n.id)));
+	async function seenOne(id: number) {
+		seenFailed = false;
+		seenNow = new Set([...seenNow, id]);
+		const res = await fetch('/api/news/seen', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ ids: [id] })
+		}).catch(() => null);
+		if (res?.ok) await invalidate('app:watch-news');
+		else {
+			seenNow = new Set([...seenNow].filter((n) => n !== id));
+			seenFailed = true;
+		}
+	}
+
 	async function setEmail(on: boolean) {
 		emailOverride = on;
 		saveFailed = false;
@@ -130,18 +150,20 @@
 	<a href="/import" class="text-accent hover:underline">Import from Netflix</a>
 </p>
 
-{#if data.news.length}
+{#if news.length}
 	<section class="mb-8 rounded-2xl bg-accent-soft p-4" aria-labelledby="news-heading">
-		<div class="mb-3 flex items-center justify-between gap-3">
+		<div class="mb-3 flex min-h-9 items-center justify-between gap-3">
 			<h2 id="news-heading" class="text-sm font-bold tracking-wide text-accent uppercase">New</h2>
-			<button type="button" class="btn-ghost h-9" disabled={clearing} onclick={clearNews}
-				>Mark all as seen</button
-			>
+			{#if news.length > 1}
+				<button type="button" class="btn-ghost h-9" disabled={clearing} onclick={clearNews}
+					>Mark all as seen</button
+				>
+			{/if}
 		</div>
 		<ul class="flex flex-col gap-2">
-			{#each data.news as n (n.id)}
-				<li>
-					<a href={titleHref(n)} class="group flex items-center gap-3">
+			{#each news as n (n.id)}
+				<li class="flex items-center gap-3">
+					<a href={titleHref(n)} class="group flex min-w-0 flex-1 items-center gap-3">
 						<Poster
 							title={n.title}
 							path={n.posterPath}
@@ -158,9 +180,18 @@
 							</p>
 						</div>
 					</a>
+					<button
+						type="button"
+						class="btn-ghost h-9 shrink-0 gap-1.5 px-3"
+						aria-label="Seen: {n.title}, {newsLabel(n)}"
+						onclick={() => seenOne(n.id)}><Check class="size-4" aria-hidden="true" />Seen</button
+					>
 				</li>
 			{/each}
 		</ul>
+		{#if seenFailed}<p class="mt-2 text-sm text-heart" role="alert">
+				Could not save that, try again.
+			</p>{/if}
 	</section>
 {/if}
 

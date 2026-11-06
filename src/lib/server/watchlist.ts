@@ -234,6 +234,7 @@ export async function setEntry(
 	// leaves it where the viewer put it.
 	const moved = had?.status !== status;
 	const position = moved ? await topOf(db, userId, status) : undefined;
+	if (status === 'watched' && had?.status !== 'watched') await clearSeenNews(db, userId, titleId);
 	await db
 		.insert(watchlist)
 		.values({
@@ -384,11 +385,49 @@ export async function unseenNewsCount(db: Db, userId: string) {
 	return row?.n ?? 0;
 }
 
-export async function markNewsSeen(db: Db, userId: string) {
+/**
+ * Clears the viewer's news: the items with these ids, or all of it without ids. One at a time
+ * matters: "Mark all as seen" was no use to someone who had seen only some of it (#49).
+ */
+export async function markNewsSeen(db: Db, userId: string, ids?: number[]) {
+	if (ids && !ids.length) return;
 	await db
 		.update(watchNews)
 		.set({ seenAt: new Date() })
-		.where(and(eq(watchNews.userId, userId), isNull(watchNews.seenAt)));
+		.where(
+			and(
+				eq(watchNews.userId, userId),
+				isNull(watchNews.seenAt),
+				ids ? inArray(watchNews.id, ids) : undefined
+			)
+		);
+}
+
+/** News of a title the viewer has now seen: episodes they ticked, or all of it once watched. */
+async function clearSeenNews(
+	db: Db,
+	userId: string,
+	titleId: number,
+	episodes?: { season: number; numbers: number[] }
+) {
+	await db
+		.update(watchNews)
+		.set({ seenAt: new Date() })
+		.where(
+			and(
+				eq(watchNews.userId, userId),
+				eq(watchNews.titleId, titleId),
+				isNull(watchNews.seenAt),
+				// A new season's news names its first episode, so ticking that clears it too.
+				episodes
+					? and(
+							inArray(watchNews.kind, ['episode', 'season']),
+							eq(watchNews.season, episodes.season),
+							inArray(watchNews.number, episodes.numbers)
+						)
+					: undefined
+			)
+		);
 }
 
 export async function emailsNews(db: Db, userId: string) {
@@ -643,6 +682,7 @@ export async function setEpisodes(
 				.insert(watchEpisodes)
 				.values(rows.slice(i, i + 20))
 				.onConflictDoNothing();
+		if (episodes.length) await clearSeenNews(db, userId, titleId, { season, numbers: episodes });
 	} else if (episodes.length)
 		await db
 			.delete(watchEpisodes)
