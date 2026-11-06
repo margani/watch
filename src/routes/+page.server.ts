@@ -9,6 +9,7 @@ import {
 	watchCountry,
 	watchCounts
 } from '#lib/server/watchlist.ts';
+import { listCount } from '#lib/server/lists.ts';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals, url, depends }) => {
@@ -18,8 +19,9 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	// One query after another kept the list waiting 300-530 ms (#7); only the rows need the tab, and
 	// the tab needs the counts only when the address names none.
 	const asked = isWatchStatus(raw) ? raw : null;
-	const [counts, services, country, news, emailNews, askedRows] = await Promise.all([
+	const [counts, lists, services, country, news, emailNews, askedRows] = await Promise.all([
 		watchCounts(locals.db, userId),
+		listCount(locals.db, userId),
 		myServices(locals.db, userId),
 		watchCountry(locals.db, userId),
 		unseenNews(locals.db, userId),
@@ -43,6 +45,7 @@ export const load: PageServerLoad = async ({ locals, url, depends }) => {
 	return {
 		tab,
 		counts,
+		lists,
 		titles,
 		services,
 		news,

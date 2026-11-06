@@ -8,6 +8,7 @@
 	import ProviderLogo from '#lib/components/ProviderLogo.svelte';
 	import DemoNote from '#lib/components/DemoNote.svelte';
 	import TrailerPlayer from '#lib/components/TrailerPlayer.svelte';
+	import TitleLists from '#lib/components/TitleLists.svelte';
 	import {
 		episodeLabel,
 		formatAirDate,
@@ -167,6 +168,8 @@
 					Could not save, try again.
 				</p>{/if}
 		</section>
+
+		<TitleLists media={d.media} tmdbId={d.tmdbId} lists={data.lists} />
 
 		<section class="mt-4 text-sm" aria-labelledby="where-heading">
 			<h2 id="where-heading" class="mb-2 font-semibold">Where to watch</h2>

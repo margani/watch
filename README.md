@@ -3,6 +3,8 @@
 Keep track of the films and series you want to watch, are watching and have seen.
 
 - **Your list** in three tabs (want to watch, watching, watched) with your own 1–10 ratings.
+- **Your own lists**, as many as you like, each in the order you want to watch it: hold a title
+  and drag it to its place.
 - **Episodes**: tick off what you have seen, season by season; the series moves to _Watching_
   and _Watched_ by itself.
 - **News**: new episodes of series you are watching and releases of films you want to see show
