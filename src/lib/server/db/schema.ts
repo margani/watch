@@ -177,6 +177,21 @@ export const imdbRatings = sqliteTable('imdb_ratings', {
 });
 
 /**
+ * Which series, season and episode each rated IMDb id is, from IMDb's title.episode dataset, loaded
+ * by the same job (#52). Episodes' ratings are ordinary rows of imdb_ratings. Empty without it.
+ */
+export const imdbEpisodes = sqliteTable(
+	'imdb_episodes',
+	{
+		imdbId: text('imdb_id').primaryKey(),
+		seriesId: text('series_id').notNull(),
+		season: integer('season').notNull(),
+		episode: integer('episode').notNull()
+	},
+	(t) => [index('imdb_episodes_series_idx').on(t.seriesId)]
+);
+
+/**
  * A viewer's own named lists (#46), such as a film series or a marathon, each in the order they
  * want to watch it. Private like the rest: every query is scoped to the owner.
  */

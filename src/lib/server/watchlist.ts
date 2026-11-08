@@ -16,9 +16,11 @@ import {
 	type TitleHit,
 	type WatchStatus
 } from '#lib/watch.ts';
+import type { EpisodeRating } from '#lib/episode-ratings.ts';
 import type { Db } from './db';
 import { cached } from './cache.ts';
 import {
+	imdbEpisodes,
 	imdbRatings,
 	user,
 	watchEpisodes,
@@ -712,6 +714,21 @@ export async function allEntries(db: Db, userId: string) {
 		status: r.status as WatchStatus,
 		details: JSON.parse(r.details) as TitleDetails
 	}));
+}
+
+/** Every rated episode of a series, for the matrix on its page (#52). */
+export function episodeRatingsFor(db: Db, seriesId: string): Promise<EpisodeRating[]> {
+	return db
+		.select({
+			season: imdbEpisodes.season,
+			episode: imdbEpisodes.episode,
+			imdbId: imdbEpisodes.imdbId,
+			rating: imdbRatings.rating,
+			votes: imdbRatings.votes
+		})
+		.from(imdbEpisodes)
+		.innerJoin(imdbRatings, eq(imdbRatings.imdbId, imdbEpisodes.imdbId))
+		.where(eq(imdbEpisodes.seriesId, seriesId));
 }
 
 export interface ImdbRating {

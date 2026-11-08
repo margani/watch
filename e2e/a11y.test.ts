@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, signUp, test } from './helpers';
+import { expect, seedEpisodeRatings, signUp, test } from './helpers';
 
 // Serious and critical WCAG 2.1 AA problems fail the run; minor ones are only listed.
 async function audit(page: import('@playwright/test').Page, label: string) {
@@ -32,6 +32,8 @@ for (const theme of ['paper', 'ink', 'sage', 'plum'] as const) {
 		await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
 		problems.push(...(await audit(page, 'signin')));
 
+		// So the matrix on the series page is audited too (#52).
+		seedEpisodeRatings();
 		await signUp(page);
 		const pages: [string, string, string?][] = [
 			// Films and series, on the demo titles.
