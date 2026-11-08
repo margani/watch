@@ -8,6 +8,10 @@ written (D1 counts every row written), through the D1 API. The state file is rep
 after every batch went in. Standard library only. Without this, title pages simply show no
 IMDb rating.
 
+Episodes are titles too, so they are among those ratings. title.episode.tsv.gz says which series,
+season and episode each one is; those places go into imdb_episodes the same way, for the ratings
+matrix on a series page. Deploy the app first: that table comes from its migrations.
+
     ACCOUNT_ID=… DATABASE_ID=… TOKEN_FILE=~/.config/watch/d1-token python3 imdb_ratings.py
 
 The token needs D1 Edit on that account.
@@ -26,6 +30,10 @@ DATABASE = os.environ.get("DATABASE_ID", "")
 URL = "https://datasets.imdbws.com/title.ratings.tsv.gz"
 TOKEN_FILE = os.path.expanduser(os.environ.get("TOKEN_FILE", "~/.config/watch/d1-token"))
 STATE = os.path.expanduser(os.environ.get("STATE", "~/.local/share/imdb-ratings/last.tsv"))
+EPISODES_URL = "https://datasets.imdbws.com/title.episode.tsv.gz"
+EPISODES_STATE = os.path.expanduser(
+    os.environ.get("EPISODES_STATE", "~/.local/share/imdb-ratings/episodes.tsv")
+)
 MIN_VOTES = int(os.environ.get("MIN_VOTES", "100"))
 # One statement per batch; D1's statement limit is 100 KB and a row is about 30 bytes.
 BATCH = 1000
@@ -64,6 +72,57 @@ def upsert_sql(rows: list[tuple[str, float, int]]) -> str:
         + values
         + " ON CONFLICT(imdb_id) DO UPDATE SET rating = excluded.rating, votes = excluded.votes"
     )
+
+
+def gz_lines(fileobj):
+    """The lines of a gzip stream. title.episode is 10 million lines; decoded whole it would hold
+    gigabytes on a small home server for the 2% of it that is kept."""
+    with gzip.open(fileobj, "rt", encoding="utf-8", newline="\n") as fh:
+        yield from fh
+
+
+def parse_episodes(lines, rated) -> dict[str, tuple[str, int, int]]:
+    """tconst → (series, season, episode) for rated episodes; IMDb leaves the numbers of some
+    episodes empty (\\N), and those have no place in a matrix."""
+    out = {}
+    for line in lines:
+        parts = line.rstrip("\n").split("\t")
+        if len(parts) != 4 or parts[0] not in rated or not ID.match(parts[1]):
+            continue
+        if parts[2].isdecimal() and parts[3].isdecimal():
+            out[parts[0]] = (parts[1], int(parts[2]), int(parts[3]))
+    return out
+
+
+def episodes_sql(rows: list[tuple[str, str, int, int]]) -> str:
+    # Literals for the same reason as upsert_sql: ids match ID, and the numbers are ints.
+    values = ",".join(f"('{i}','{p}',{s},{e})" for i, p, s, e in rows)
+    return (
+        "INSERT INTO imdb_episodes (imdb_id, series_id, season, episode) VALUES "
+        + values
+        + " ON CONFLICT(imdb_id) DO UPDATE SET series_id = excluded.series_id, "
+        "season = excluded.season, episode = excluded.episode"
+    )
+
+
+def read_episodes(path: str) -> dict:
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path) as fh:
+        for line in fh:
+            i, p, s, e = line.rstrip("\n").split("\t")
+            out[i] = (p, int(s), int(e))
+    return out
+
+
+def write_episodes(path: str, rows: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path))
+    with os.fdopen(fd, "w") as fh:
+        for k, (p, s, e) in sorted(rows.items()):
+            fh.write(f"{k}\t{p}\t{s}\t{e}\n")
+    os.replace(tmp, path)
 
 
 def read_state(path: str) -> dict:
@@ -119,6 +178,24 @@ def main() -> int:
         return 1
     write_state(STATE, new)
     print(f"imdb ratings: {len(new)} titles, {len(rows)} written, {total} in D1")
+    return load_episodes(token, new)
+
+
+def load_episodes(token: str, rated) -> int:
+    with urllib.request.urlopen(EPISODES_URL, timeout=300) as res:
+        new = parse_episodes(gz_lines(res), rated)
+    if len(new) < 50_000:
+        print(f"only {len(new)} episodes in the file; nothing written", file=sys.stderr)
+        return 1
+    rows = changed(new, read_episodes(EPISODES_STATE))
+    for i in range(0, len(rows), BATCH):
+        d1(token, episodes_sql(rows[i : i + BATCH]))
+    total = d1(token, "SELECT count(*) AS n FROM imdb_episodes")[0]["n"]
+    if total < len(new):
+        print(f"D1 has {total} episodes, the file {len(new)}; state kept", file=sys.stderr)
+        return 1
+    write_episodes(EPISODES_STATE, new)
+    print(f"imdb episodes: {len(new)} episodes, {len(rows)} written, {total} in D1")
     return 0
 
 

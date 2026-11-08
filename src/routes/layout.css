@@ -77,6 +77,25 @@
 	--focus: #74348a;
 }
 
+/*
+ * The bands of the episode ratings matrix (#52), the same in every theme because each colour keeps
+ * its own number legible: the ink on its colour is at least 5:1.
+ */
+:root {
+	--rating-awesome: #1b6e3e;
+	--rating-awesome-ink: #ffffff;
+	--rating-great: #35a866;
+	--rating-great-ink: #06210f;
+	--rating-good: #f5d553;
+	--rating-good-ink: #2a2000;
+	--rating-average: #e57c23;
+	--rating-average-ink: #241000;
+	--rating-bad: #c93a2e;
+	--rating-bad-ink: #ffffff;
+	--rating-garbage: #6d3fa6;
+	--rating-garbage-ink: #ffffff;
+}
+
 @theme inline {
 	/* One calm, rounded face for headings and text (the owner's choice); font-serif marks headings. */
 	--font-sans: 'Nunito Variable', ui-sans-serif, system-ui, sans-serif;
@@ -94,6 +113,18 @@
 	--color-accent-soft: var(--accent-soft);
 	--color-heart: var(--heart);
 	--color-star: var(--star);
+	--color-rating-awesome: var(--rating-awesome);
+	--color-rating-awesome-ink: var(--rating-awesome-ink);
+	--color-rating-great: var(--rating-great);
+	--color-rating-great-ink: var(--rating-great-ink);
+	--color-rating-good: var(--rating-good);
+	--color-rating-good-ink: var(--rating-good-ink);
+	--color-rating-average: var(--rating-average);
+	--color-rating-average-ink: var(--rating-average-ink);
+	--color-rating-bad: var(--rating-bad);
+	--color-rating-bad-ink: var(--rating-bad-ink);
+	--color-rating-garbage: var(--rating-garbage);
+	--color-rating-garbage-ink: var(--rating-garbage-ink);
 }
 
 @layer base {

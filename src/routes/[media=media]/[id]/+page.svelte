@@ -1,6 +1,7 @@
 <script lang="ts">
 	import CastPhoto from '#lib/components/CastPhoto.svelte';
 	import ExternalLink from '@lucide/svelte/icons/external-link';
+	import EpisodeRatings from '#lib/components/EpisodeRatings.svelte';
 	import Episodes from '#lib/components/Episodes.svelte';
 	import JustWatchCredit from '#lib/components/JustWatchCredit.svelte';
 	import MoreTitles from '#lib/components/MoreTitles.svelte';
@@ -291,6 +292,8 @@
 				onstatus={(s) => (saved = { status: s, rating })}
 			/>
 		{/if}
+
+		{#if data.ratingsMatrix}<EpisodeRatings matrix={data.ratingsMatrix} />{/if}
 
 		{#if makers.length || d.music?.length}
 			<dl class="mt-5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">

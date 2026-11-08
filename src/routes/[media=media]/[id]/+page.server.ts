@@ -1,9 +1,11 @@
 import { error } from '@sveltejs/kit';
+import { ratingsMatrix } from '#lib/episode-ratings.ts';
 import { isMedia, whereToWatch } from '#lib/watch.ts';
 import { ratingsFromOmdb } from '#lib/server/omdb.ts';
 import { tmdbDemo, TmdbError } from '#lib/server/tmdb.ts';
 import {
 	entryFor,
+	episodeRatingsFor,
 	imdbRatingsFor,
 	myServices,
 	ownLinks,
@@ -31,11 +33,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 				params.media === 'tv' ? watchedEpisodes(locals.db, userId, id) : Promise.resolve([]),
 				listsForTitle(locals.db, userId, params.media, id)
 			]);
-		const [otherRatings, imdb] = await Promise.all([
+		const [otherRatings, imdb, episodeRatings] = await Promise.all([
 			ratingsFromOmdb(details.imdbId),
 			details.imdbId
 				? imdbRatingsFor(locals.db, [details.imdbId]).then((r) => r.get(details.imdbId!) ?? null)
-				: null
+				: null,
+			params.media === 'tv' && details.imdbId ? episodeRatingsFor(locals.db, details.imdbId) : []
 		]);
 		const mine = new Set(services.map((p) => p.id));
 		return {
@@ -45,6 +48,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			hasServices: mine.size > 0,
 			otherRatings,
 			imdb,
+			ratingsMatrix: ratingsMatrix(episodeRatings),
 			watchedEpisodes: watchedEps,
 			stale,
 			entry,
