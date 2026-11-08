@@ -58,3 +58,29 @@ export function d1(sql: string): Record<string, number | string>[] {
 		}
 	}
 }
+
+/**
+ * Rated episodes of the demo series, one of each band and enough seasons to be wider than a phone
+ * (#52). The same rows every time: tests run in parallel on one local database.
+ */
+export function seedEpisodeRatings() {
+	const rows: [string, number, number, number][] = [
+		['tt9100101', 1, 1, 9.3],
+		['tt9100102', 1, 2, 8.1],
+		['tt9100103', 1, 3, 7.4],
+		['tt9100201', 2, 1, 6.2],
+		['tt9100202', 2, 2, 5.1],
+		['tt9100203', 2, 3, 3.9]
+	];
+	for (let season = 3; season <= 12; season++) rows.push([`tt91${season + 10}001`, season, 1, 7.5]);
+	d1(
+		`INSERT OR REPLACE INTO imdb_ratings (imdb_id, rating, votes) VALUES ${rows
+			.map(([id, , , rating]) => `('${id}', ${rating}, 1234)`)
+			.join(',')}`
+	);
+	d1(
+		`INSERT OR REPLACE INTO imdb_episodes (imdb_id, series_id, season, episode) VALUES ${rows
+			.map(([id, season, episode]) => `('${id}', 'tt9000101', ${season}, ${episode})`)
+			.join(',')}`
+	);
+}

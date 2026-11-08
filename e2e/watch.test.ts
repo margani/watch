@@ -1,5 +1,5 @@
 import { formatAirDate } from '../src/lib/watch.ts';
-import { d1, expect, hydrated, signUp, test } from './helpers';
+import { d1, expect, hydrated, seedEpisodeRatings, signUp, test } from './helpers';
 
 // The demo series' last and next episodes are two weeks either side of today (#38).
 const airDay = (days: number) =>
@@ -420,4 +420,39 @@ test('your own links show on title pages, only for you', async ({ page, browser 
 	await other.goto('/movie/900001');
 	await expect(other.getByRole('list', { name: 'Your links' })).toHaveCount(0);
 	await other.close();
+});
+
+test('a series page shows a matrix of its IMDb episode ratings (#52)', async ({ page }) => {
+	seedEpisodeRatings();
+	await signUp(page);
+	await page.goto('/tv/900101');
+	await hydrated(page);
+
+	const matrix = page.getByRole('region', { name: 'Episode ratings on IMDb' });
+	await expect(matrix.getByRole('columnheader', { name: 'Season 2' })).toBeVisible();
+	const cell = matrix.getByRole('link', {
+		name: 'Season 1, episode 1: 9.3 on IMDb, 1,234 votes'
+	});
+	await expect(cell).toHaveText('9.3');
+	await expect(cell).toHaveAttribute('href', 'https://www.imdb.com/title/tt9100101/');
+	await expect(cell).toHaveClass(/bg-rating-awesome/);
+	await expect(matrix.getByRole('link', { name: /^Season 2, episode 3: 3\.9/ })).toHaveClass(
+		/bg-rating-garbage/
+	);
+	const averages = matrix.locator('tfoot td');
+	await expect(averages).toHaveText(['8.3', '5.1', ...Array(10).fill('7.5')]);
+
+	// Wider than a phone, it scrolls inside its own box and never widens the page.
+	await page.setViewportSize({ width: 390, height: 844 });
+	const widths = await matrix.evaluate((e) => ({
+		box: e.scrollWidth - e.clientWidth,
+		page: document.documentElement.scrollWidth - document.documentElement.clientWidth
+	}));
+	expect(widths.box).toBeGreaterThan(0);
+	expect(widths.page).toBe(0);
+
+	// A series whose episodes nobody has loaded shows no empty grid.
+	await page.goto('/tv/900102');
+	await expect(page.getByRole('heading', { level: 1, name: 'The Quiet Orchard' })).toBeVisible();
+	await expect(page.getByRole('region', { name: 'Episode ratings on IMDb' })).toHaveCount(0);
 });

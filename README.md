@@ -14,7 +14,7 @@ Keep track of the films and series you want to watch, are watching and have seen
 - **For you**: newer films in collections you have started, and popular titles on your services.
 - **Netflix import**: your viewing history file is read in the browser and matched to titles.
 - **Your own links** on every title page, such as a search on a site you use.
-- Ratings from IMDb, Rotten Tomatoes and Metacritic when configured.
+- Ratings from IMDb, Rotten Tomatoes and Metacritic when configured, and a season-by-episode matrix of IMDb ratings on series.
 - Download all your data, or delete the account, at any time.
 
 Built with SvelteKit (Svelte 5), Tailwind CSS 4 and Drizzle on Cloudflare Workers + D1, with
