@@ -44,3 +44,30 @@ test('the privacy page is open to everyone', async ({ page }) => {
 	await page.goto('/signin');
 	await expect(page.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
 });
+
+// watch.test.ts failed once in CI: its second user comes from browser.newPage(), which skips the
+// page fixture, and text typed before hydration is reset. Slow scripts make that race certain.
+test('signUp waits for hydration on a page outside the fixture', async ({ browser }) => {
+	const other = await browser.newPage();
+	await other.route('**/*', async (route) => {
+		if (route.request().resourceType() === 'script') {
+			await new Promise((resolve) => setTimeout(resolve, 200));
+		}
+		await route.continue();
+	});
+	await other.addInitScript(() => {
+		document.addEventListener(
+			'submit',
+			() => {
+				sessionStorage.setItem(
+					'hydratedAtSubmit',
+					String('hydrated' in document.documentElement.dataset)
+				);
+			},
+			true
+		);
+	});
+	await signUp(other);
+	expect(await other.evaluate(() => sessionStorage.getItem('hydratedAtSubmit'))).toBe('true');
+	await other.close();
+});
