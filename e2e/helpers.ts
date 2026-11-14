@@ -23,6 +23,8 @@ let n = 0;
 export async function signUp(page: Page) {
 	const email = `viewer-${Date.now()}-${n++}@example.com`;
 	await page.goto('/signup');
+	// A page from browser.newPage() skips the fixture's wait, and typing before hydration is reset.
+	await hydrated(page);
 	await page.getByLabel('Name').fill('Demo Viewer');
 	await page.getByLabel('Email').fill(email);
 	await page.getByLabel('Password').fill(password);
